@@ -1,0 +1,58 @@
+# Environment Variables
+.env
+.env.local
+.env.*.local
+.env.production.local
+
+# Python
+Agent/.venv/
+Agent/venv/
+Agent/__pycache__/
+Agent/.pytest_cache/
+Agent/*.pyc
+Agent/*.pyo
+Agent/*.egg-info/
+Agent/dist/
+Agent/build/
+Agent/.coverage
+Agent/htmlcov/
+
+# Node.js - Backend
+BackEnd/node_modules/
+BackEnd/dist/
+BackEnd/build/
+BackEnd/npm-debug.log*
+BackEnd/.npm-cache/
+BackEnd/.node_modules.tar.gz
+
+# Node.js - Frontend
+Frontend/node_modules/
+Frontend/dist/
+Frontend/build/
+Frontend/npm-debug.log*
+Frontend/.npm-cache/
+Frontend/.node_modules.tar.gz
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependency locks (comentar si los quieres versionar)
+# package-lock.json
+# yarn.lock
+
+# OS
+.DS_Store
+Thumbs.db
+.env.bak
