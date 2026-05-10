@@ -15,8 +15,20 @@ async function getCoveragesByPolicyId(request, response) {
   response.status(200).json(coverages);
 }
 
+async function createPolicy(request, response) {
+  const policy = await policiesService.createPolicy(request.body);
+  response.status(201).json(policy);
+}
+
+async function getInsurers(request, response) {
+  const insurers = await policiesService.getInsurers();
+  response.status(200).json(insurers);
+}
+
 module.exports = {
   getPoliciesByPatientId,
   getPolicyById,
-  getCoveragesByPolicyId
+  getCoveragesByPolicyId,
+  createPolicy,
+  getInsurers
 };

@@ -66,7 +66,9 @@ class OpenAIReportClient:
 
         system_prompt = (
             "Redacta reportes concisos de validacion de polizas en Espanol. "
-            "Usa solo los hechos provistos; NO inventes detalles."
+            "Usa solo los hechos provistos; NO inventes detalles. "
+            "Si la decision es revision_manual, explica el disparador concreto y usa las recomendaciones provistas en suggestedAction. "
+            "Si la decision no es revision_manual, no sugieras revision manual ni lenguaje ambiguo."
         )
 
         base_payload: dict[str, Any] = {

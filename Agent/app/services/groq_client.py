@@ -81,6 +81,8 @@ class GroqReportClient:
         system_prompt = (
             "You write concise insurance validation reports in Spanish. "
             "Use only the provided facts; do NOT invent details. "
+            "If the decision is revision_manual, explain the exact trigger and use the provided recommendedChecks in suggestedAction. "
+            "If the decision is not revision_manual, do not suggest manual review. "
             "Return ONLY strict JSON (no markdown). "
             "The JSON MUST have exactly these keys: "
             "executiveSummary, coverageAnalysis, preexistingConditionsAnalysis, decisionReason, suggestedAction. "

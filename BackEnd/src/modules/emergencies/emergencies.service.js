@@ -40,6 +40,19 @@ function isDuplicateCaseCodeError(error) {
   return error?.code === '23505' && error?.constraint === 'emergencias_codigo_caso_key';
 }
 
+function buildCancellationObservations(currentObservations, cancellationReason) {
+  const normalizedReason = cancellationReason?.trim();
+  const cancellationNote = normalizedReason
+    ? `Cancelada: ${normalizedReason}`
+    : 'Cancelada sin motivo especificado';
+
+  if (!currentObservations) {
+    return cancellationNote;
+  }
+
+  return `${currentObservations}\n${cancellationNote}`;
+}
+
 function mapEmergencyRecord(emergencyRecord) {
   return {
     id: emergencyRecord.id,
@@ -153,6 +166,34 @@ async function listEmergencies(authenticatedUser) {
   return emergencyRecords.map(mapEmergencyRecord);
 }
 
+async function cancelEmergency(emergencyId, cancellationData, authenticatedUser) {
+  if (authenticatedUser.role !== roles.EMERGENCY_REGISTRAR) {
+    throw new AppError('Only emergency registrars can cancel emergencies', 403);
+  }
+
+  const emergencyRecord = await emergencyRepository.findEmergencyById(emergencyId);
+
+  if (!emergencyRecord) {
+    throw new AppError('Emergency not found', 404);
+  }
+
+  if (authenticatedUser.hospitalId && emergencyRecord.hospital_id !== authenticatedUser.hospitalId) {
+    throw new AppError('You do not have access to this emergency', 403);
+  }
+
+  if (emergencyRecord.estado !== emergencyStatus.REGISTERED) {
+    throw new AppError('Only emergencies in registrada status can be cancelled', 409);
+  }
+
+  const cancelledEmergency = await emergencyRepository.cancelEmergency(
+    emergencyId,
+    buildCancellationObservations(emergencyRecord.observaciones, cancellationData?.cancellationReason),
+    emergencyStatus.CANCELLED
+  );
+
+  return mapEmergencyRecord(cancelledEmergency);
+}
+
 async function getLatestValidationByEmergencyId(emergencyId, authenticatedUser) {
   const emergencyRecord = await emergencyRepository.findEmergencyById(emergencyId);
 
@@ -178,5 +219,6 @@ module.exports = {
   registerEmergency,
   getEmergencyById,
   listEmergencies,
+  cancelEmergency,
   getLatestValidationByEmergencyId
 };

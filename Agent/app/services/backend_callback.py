@@ -22,6 +22,9 @@ async def send_validation_callback(
         extra={
             "validation_id": request.validationId,
             "callback_url": callback_url,
+            "process_status": result_payload.processStatus,
+            "decision": result_payload.decision,
+            "report_code": result_payload.report.reportCode if result_payload.report else None,
             "notifications_count": len(result_payload.notifications or []),
             "has_callback_token": bool(settings.validation_result_callback_token),
         },

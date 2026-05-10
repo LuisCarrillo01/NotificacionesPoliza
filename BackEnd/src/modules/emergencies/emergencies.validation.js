@@ -36,6 +36,18 @@ function validateCreateEmergencyRequest(request) {
   return validationErrors;
 }
 
+function validateCancelEmergencyRequest(request) {
+  const validationErrors = [];
+  const { cancellationReason } = request.body || {};
+
+  if (cancellationReason !== undefined && typeof cancellationReason !== 'string') {
+    validationErrors.push('cancellationReason must be a string');
+  }
+
+  return validationErrors;
+}
+
 module.exports = {
-  validateCreateEmergencyRequest
+  validateCreateEmergencyRequest,
+  validateCancelEmergencyRequest
 };

@@ -6,6 +6,7 @@ import type { Report } from '../../types/api'
 import { ErrorAlert } from '../../shared/components/ErrorAlert'
 import { LoadingBlock } from '../../shared/components/LoadingBlock'
 import { PageHeader } from '../../shared/components/PageHeader'
+import { ClipboardList, AlertCircle, CheckCircle2, Activity, Zap, Calendar, FileText } from 'lucide-react'
 
 export function ReportsPage() {
   const { reportId: routeReportId } = useParams()
@@ -91,35 +92,50 @@ export function ReportsPage() {
       ) : routeReportId && report ? (
         <section className="panel-card report-card">
           <div className="section-heading">
-            <div>
-              <h3>{report.reportCode}</h3>
-              <p>Validacion asociada: {report.validationId}</p>
+            <div className="inline-context">
+              <FileText size={24} className="metric-icon" style={{ borderRadius: '0.6rem' }} />
+              <div>
+                <h3>{report.reportCode}</h3>
+                <p>Validacion asociada: {report.validationId}</p>
+              </div>
             </div>
           </div>
 
           <div className="report-grid">
             <article>
-              <h4 className="subsection-title">Resumen ejecutivo</h4>
+              <h4 className="subsection-title" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <ClipboardList size={18} /> Resumen ejecutivo
+              </h4>
               <p>{report.executiveSummary}</p>
             </article>
             <article>
-              <h4 className="subsection-title">Motivo de decision</h4>
+              <h4 className="subsection-title" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <AlertCircle size={18} /> Motivo de decision
+              </h4>
               <p>{report.decisionReason}</p>
             </article>
             <article>
-              <h4 className="subsection-title">Analisis de cobertura</h4>
+              <h4 className="subsection-title" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <CheckCircle2 size={18} /> Analisis de cobertura
+              </h4>
               <p>{report.coverageAnalysis ?? 'Sin analisis detallado.'}</p>
             </article>
             <article>
-              <h4 className="subsection-title">Analisis de preexistencias</h4>
+              <h4 className="subsection-title" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <Activity size={18} /> Analisis de preexistencias
+              </h4>
               <p>{report.preexistingConditionsAnalysis ?? 'Sin preexistencias relevantes.'}</p>
             </article>
             <article>
-              <h4 className="subsection-title">Accion sugerida</h4>
+              <h4 className="subsection-title" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <Zap size={18} /> Accion sugerida
+              </h4>
               <p>{report.suggestedAction ?? 'Sin accion sugerida adicional.'}</p>
             </article>
             <article>
-              <h4 className="subsection-title">Fecha de generacion</h4>
+              <h4 className="subsection-title" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <Calendar size={18} /> Fecha de generacion
+              </h4>
               <p>{new Date(report.generatedAt).toLocaleString()}</p>
             </article>
           </div>

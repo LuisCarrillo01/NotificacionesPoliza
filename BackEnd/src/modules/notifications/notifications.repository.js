@@ -1,6 +1,6 @@
 const { executeQuery } = require('../../config/database');
 
-async function createNotification(notificationData) {
+async function createNotification(notificationData, client = null) {
   const queryText = `
     INSERT INTO notificaciones (
       validacion_id,
@@ -31,8 +31,12 @@ async function createNotification(notificationData) {
     notificationData.readAt
   ];
 
-  const queryResult = await executeQuery(queryText, queryParams);
+  const queryResult = await executeQuery(queryText, queryParams, client);
   return queryResult.rows[0];
+}
+
+async function deleteNotificationsByValidationId(validationId, client = null) {
+  await executeQuery('DELETE FROM notificaciones WHERE validacion_id = $1', [validationId], client);
 }
 
 async function findNotificationsByRecipientUserId(recipientUserId) {
@@ -69,6 +73,7 @@ async function markNotificationAsRead(notificationId) {
 
 module.exports = {
   createNotification,
+  deleteNotificationsByValidationId,
   findNotificationsByRecipientUserId,
   findPendingNotificationsByRecipientUserId,
   findNotificationById,

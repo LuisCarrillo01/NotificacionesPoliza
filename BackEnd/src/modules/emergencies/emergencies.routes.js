@@ -1,6 +1,7 @@
 const express = require('express');
 const emergenciesController = require('./emergencies.controller');
 const emergenciesValidation = require('./emergencies.validation');
+const validationsController = require('../validations/validations.controller');
 const asyncHandler = require('../../shared/utils/asyncHandler');
 const validateRequest = require('../../shared/validators/validateRequest');
 
@@ -13,6 +14,15 @@ emergenciesRouter.post(
 );
 
 emergenciesRouter.get('/', asyncHandler(emergenciesController.listEmergencies));
+emergenciesRouter.post(
+  '/:emergencyId/validations',
+  asyncHandler(validationsController.createValidationForEmergency)
+);
+emergenciesRouter.patch(
+  '/:emergencyId/cancel',
+  validateRequest(emergenciesValidation.validateCancelEmergencyRequest),
+  asyncHandler(emergenciesController.cancelEmergency)
+);
 emergenciesRouter.get('/:emergencyId/validation', asyncHandler(emergenciesController.getLatestValidationByEmergencyId));
 emergenciesRouter.get('/:emergencyId', asyncHandler(emergenciesController.getEmergencyById));
 

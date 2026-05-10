@@ -1,13 +1,15 @@
 import {
   Bell,
-  ClipboardPlus,
   FileText,
   LayoutDashboard,
   LogOut,
   Menu,
   ShieldPlus,
   UserRound,
+  UserPlus,
   X,
+  ChevronLeft,
+  ChevronRight,
   type LucideIcon,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -32,12 +34,17 @@ const navigationItems: NavigationItem[] = [
     roles: emergencyAccessRoles,
   },
   {
-    to: '/app/emergencies/new',
-    label: 'Nueva emergencia',
-    icon: ClipboardPlus,
+    to: '/app/patients/new',
+    label: 'Nuevo paciente',
+    icon: UserPlus,
     roles: ['registrador_emergencia'],
   },
-  { to: '/app/notifications', label: 'Notificaciones', icon: Bell },
+  { 
+    to: '/app/notifications', 
+    label: 'Notificaciones', 
+    icon: Bell,
+    roles: ['receptor_admisiones', 'receptor_aseguradora']
+  },
   { to: '/app/reports', label: 'Informes', icon: FileText },
   { to: '/app/profile', label: 'Perfil', icon: UserRound },
 ]
@@ -58,6 +65,7 @@ function roleLabel(role: string) {
 export function AppShell() {
   const { user, logout } = useAuth()
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(false)
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(min-width: 1181px)')
@@ -87,7 +95,7 @@ export function AppShell() {
   )
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${isCollapsed ? 'app-shell--collapsed' : ''}`}>
       <a className="skip-link" href="#main-content">
         Saltar al contenido principal
       </a>
@@ -130,6 +138,15 @@ export function AppShell() {
           </div>
         </div>
 
+        <button 
+          type="button" 
+          className="sidebar-toggle-btn"
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          aria-label={isCollapsed ? 'Expandir menú' : 'Minimizar menú'}
+        >
+          {isCollapsed ? <ChevronRight size={18} strokeWidth={2.5} /> : <ChevronLeft size={18} strokeWidth={2.5} />}
+        </button>
+
         <div className="operator-card">
           <p className="eyebrow">Sesion activa</p>
           <strong>{user.fullName}</strong>
@@ -156,7 +173,7 @@ export function AppShell() {
 
         <button type="button" className="secondary-button sidebar-logout" onClick={logout}>
           <LogOut size={18} strokeWidth={2.2} aria-hidden="true" />
-          Cerrar sesion
+          <span>Cerrar sesion</span>
         </button>
       </aside>
 

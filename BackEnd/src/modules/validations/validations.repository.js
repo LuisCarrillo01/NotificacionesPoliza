@@ -1,6 +1,6 @@
 const { executeQuery } = require('../../config/database');
 
-async function createValidation(validationData) {
+async function createValidation(validationData, client = null) {
   const queryText = `
     INSERT INTO validaciones (
       emergencia_id,
@@ -16,25 +16,26 @@ async function createValidation(validationData) {
     validationData.emergencyId,
     validationData.processStatus,
     validationData.payloadSummary
-  ]);
+  ], client);
 
   return queryResult.rows[0];
 }
 
-async function findValidationById(validationId) {
-  const queryResult = await executeQuery('SELECT * FROM validaciones WHERE id = $1 LIMIT 1', [validationId]);
+async function findValidationById(validationId, client = null) {
+  const queryResult = await executeQuery('SELECT * FROM validaciones WHERE id = $1 LIMIT 1', [validationId], client);
   return queryResult.rows[0] || null;
 }
 
-async function findLatestValidationByEmergencyId(emergencyId) {
+async function findLatestValidationByEmergencyId(emergencyId, client = null) {
   const queryResult = await executeQuery(
     'SELECT * FROM validaciones WHERE emergencia_id = $1 ORDER BY fecha_solicitud DESC, created_at DESC LIMIT 1',
-    [emergencyId]
+    [emergencyId],
+    client
   );
   return queryResult.rows[0] || null;
 }
 
-async function updateValidationProcessingStatus(validationId, processStatus, payloadSummary = null) {
+async function updateValidationProcessingStatus(validationId, processStatus, payloadSummary = null, client = null) {
   const queryText = `
     UPDATE validaciones
     SET estado_proceso = $2,
@@ -43,11 +44,11 @@ async function updateValidationProcessingStatus(validationId, processStatus, pay
     RETURNING *
   `;
 
-  const queryResult = await executeQuery(queryText, [validationId, processStatus, payloadSummary]);
+  const queryResult = await executeQuery(queryText, [validationId, processStatus, payloadSummary], client);
   return queryResult.rows[0] || null;
 }
 
-async function completeValidation(validationId, validationResult) {
+async function completeValidation(validationId, validationResult, client = null) {
   const queryText = `
     UPDATE validaciones
     SET estado_proceso = $2,
@@ -69,7 +70,32 @@ async function completeValidation(validationId, validationResult) {
     validationResult.engineVersion,
     validationResult.payloadSummary,
     validationResult.errorDetails
-  ]);
+  ], client);
+
+  return queryResult.rows[0] || null;
+}
+
+async function resetValidationForRetry(validationId, payloadSummary, client = null) {
+  const queryText = `
+    UPDATE validaciones
+    SET estado_proceso = $2,
+        decision = NULL,
+        requiere_revision_manual = false,
+        fecha_solicitud = now(),
+        fecha_respuesta = NULL,
+        motor_version = NULL,
+        payload_resumen = $3,
+        error_detalle = NULL,
+        updated_at = now()
+    WHERE id = $1
+    RETURNING *
+  `;
+
+  const queryResult = await executeQuery(
+    queryText,
+    [validationId, 'procesando', payloadSummary],
+    client
+  );
 
   return queryResult.rows[0] || null;
 }
@@ -79,5 +105,6 @@ module.exports = {
   findValidationById,
   findLatestValidationByEmergencyId,
   updateValidationProcessingStatus,
-  completeValidation
+  completeValidation,
+  resetValidationForRetry
 };

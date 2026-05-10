@@ -7,11 +7,13 @@ import { DashboardPage } from './features/dashboard/DashboardPage'
 import { EmergencyDetailPage } from './features/emergencies/EmergencyDetailPage'
 import { EmergenciesPage } from './features/emergencies/EmergenciesPage'
 import { NewEmergencyPage } from './features/emergencies/NewEmergencyPage'
+import { EmergencyReviewPage } from './features/emergencies/EmergencyReviewPage'
 import { LoginPage } from './features/auth/LoginPage'
 import { NotificationDetailPage } from './features/notifications/NotificationDetailPage'
 import { NotificationsPage } from './features/notifications/NotificationsPage'
 import { ProfilePage } from './features/profile/ProfilePage'
 import { ReportsPage } from './features/reports/ReportsPage'
+import { NewPatientPage } from './features/patients/NewPatientPage'
 import { emergencyAccessRoles } from './shared/authorization/roles'
 
 function App() {
@@ -46,10 +48,26 @@ function App() {
               }
             />
             <Route
+              path="emergencies/:emergencyId/review"
+              element={
+                <RoleRoute allowedRoles={['registrador_emergencia']} redirectTo="/app/notifications">
+                  <EmergencyReviewPage />
+                </RoleRoute>
+              }
+            />
+            <Route
               path="emergencies/:emergencyId"
               element={
                 <RoleRoute allowedRoles={emergencyAccessRoles} redirectTo="/app/notifications">
                   <EmergencyDetailPage />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path="patients/new"
+              element={
+                <RoleRoute allowedRoles={['registrador_emergencia']} redirectTo="/app/notifications">
+                  <NewPatientPage />
                 </RoleRoute>
               }
             />

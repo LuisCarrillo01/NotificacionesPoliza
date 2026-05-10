@@ -281,6 +281,54 @@ Authorization: Bearer <token>
 
 ---
 
+### PATCH `/api/emergencies/:emergencyId/cancel`
+
+**Que hace**
+- Cancela una emergencia medica antes de que entre al flujo de validacion.
+- Solo debe usarlo un usuario con rol `registrador_emergencia`.
+- Solo permite cancelar emergencias en estado `registrada`.
+
+**Headers**
+```txt
+Authorization: Bearer <token>
+```
+
+**Body**
+```json
+{
+  "cancellationReason": "Registro duplicado"
+}
+```
+
+**Campos opcionales**
+- `cancellationReason`: string
+
+**Respuesta esperada**
+```json
+{
+  "id": "60000000-0000-0000-0000-000000000001",
+  "patientId": "40000000-0000-0000-0000-000000000001",
+  "hospitalId": "10000000-0000-0000-0000-000000000001",
+  "policyId": "50000000-0000-0000-0000-000000000001",
+  "registeredByUserId": "30000000-0000-0000-0000-000000000001",
+  "caseCode": "EM-20260510-0001",
+  "emergencyType": "cardiaca",
+  "priorityLevel": "critica",
+  "emergencyStatus": "cancelada",
+  "admissionDate": "2026-05-10T14:10:00.000Z",
+  "initialDescription": "Paciente con dolor toracico intenso",
+  "observations": "Cancelada: Registro duplicado",
+  "createdAt": "2026-05-10T14:10:00.000Z",
+  "updatedAt": "2026-05-10T14:20:00.000Z"
+}
+```
+
+**Reglas**
+- Si la emergencia ya esta en `en_validacion` o en un estado posterior, no se puede cancelar.
+- El motivo de cancelacion se agrega en `observations` para trazabilidad.
+
+---
+
 ## Validaciones
 
 ### POST `/api/emergencies/:emergencyId/validations`
@@ -306,6 +354,48 @@ Authorization: Bearer <token>
   - coberturas
   - preexistencias
   - callback del resultado
+
+---
+
+### POST `/api/validations/:validationId/retry`
+
+**Que hace**
+- Reintenta el envio de una validacion al Agente de Validacion.
+- Solo aplica si la validacion esta `fallida` o `procesando` por mas tiempo del umbral configurado.
+
+**Headers**
+```txt
+Authorization: Bearer <token>
+```
+
+**Body**
+- No requiere body.
+
+**Respuesta esperada**
+```json
+{
+  "id": "70000000-0000-0000-0000-000000000001",
+  "emergencyId": "60000000-0000-0000-0000-000000000001",
+  "processStatus": "procesando",
+  "decision": null,
+  "requiresManualReview": false,
+  "requestDate": "2026-05-10T15:10:00.000Z",
+  "responseDate": null,
+  "engineVersion": null,
+  "payloadSummary": {
+    "emergencyId": "60000000-0000-0000-0000-000000000001",
+    "caseCode": "EM-20260510-0001"
+  },
+  "errorDetails": null,
+  "createdAt": "2026-05-10T14:55:00.000Z",
+  "updatedAt": "2026-05-10T15:10:00.000Z"
+}
+```
+
+**Errores esperados**
+- `403` si el usuario no tiene acceso a la validacion.
+- `404` si la validacion no existe.
+- `409` si la validacion no esta fallida ni excedio el tiempo permitido para retry.
 
 ---
 
@@ -491,6 +581,7 @@ Authorization: Bearer <token>
 
 ### Validations
 - `POST /api/emergencies/:emergencyId/validations`
+- `POST /api/validations/:validationId/retry`
 - `POST /api/validations/:validationId/result`
 
 ### Reports

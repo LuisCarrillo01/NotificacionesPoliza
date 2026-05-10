@@ -1,6 +1,6 @@
 const { executeQuery } = require('../../config/database');
 
-async function createValidationReport(reportData) {
+async function createValidationReport(reportData, client = null) {
   const queryText = `
     INSERT INTO informes_validacion (
       validacion_id,
@@ -40,19 +40,20 @@ async function createValidationReport(reportData) {
     reportData.contentJson
   ];
 
-  const queryResult = await executeQuery(queryText, queryParams);
+  const queryResult = await executeQuery(queryText, queryParams, client);
   return queryResult.rows[0];
 }
 
-async function findReportById(reportId) {
-  const queryResult = await executeQuery('SELECT * FROM informes_validacion WHERE id = $1 LIMIT 1', [reportId]);
+async function findReportById(reportId, client = null) {
+  const queryResult = await executeQuery('SELECT * FROM informes_validacion WHERE id = $1 LIMIT 1', [reportId], client);
   return queryResult.rows[0] || null;
 }
 
-async function findReportByValidationId(validationId) {
+async function findReportByValidationId(validationId, client = null) {
   const queryResult = await executeQuery(
     'SELECT * FROM informes_validacion WHERE validacion_id = $1 ORDER BY fecha_generacion DESC LIMIT 1',
-    [validationId]
+    [validationId],
+    client
   );
   return queryResult.rows[0] || null;
 }

@@ -1,24 +1,26 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/useAuth'
 import {
   ApiError,
   createEmergency,
   createPatient,
+  createPolicy,
   getPatientByDocument,
+  listInsurers,
   listPoliciesByPatient,
   listPreexistingConditionsByPatient,
 } from '../../lib/api'
-import type { Patient, Policy, PreexistingCondition } from '../../types/api'
+import type { Patient, Policy, PreexistingCondition, Insurer } from '../../types/api'
 import { EmptyState } from '../../shared/components/EmptyState'
 import { ErrorAlert } from '../../shared/components/ErrorAlert'
 import { PageHeader } from '../../shared/components/PageHeader'
 import { StatusBadge } from '../../shared/components/StatusBadge'
 import { getStatusTone } from '../../shared/utils/statusTone'
+import { PREDEFINED_PLANS } from '../../shared/constants/plans'
 
-const documentTypes = ['cedula', 'pasaporte', 'otro']
 const emergencyTypes = ['cardiaca', 'respiratoria', 'trauma', 'neurologica', 'general']
-const priorityLevels = ['critica', 'alta', 'media']
+const priorityLevels = ['alta', 'media', 'critica']
 
 export function NewEmergencyPage() {
   const { token, user } = useAuth()
@@ -26,6 +28,7 @@ export function NewEmergencyPage() {
   const [patientLookup, setPatientLookup] = useState({ documentType: 'cedula', documentNumber: '' })
   const [patient, setPatient] = useState<Patient | null>(null)
   const [policies, setPolicies] = useState<Policy[]>([])
+  const [insurers, setInsurers] = useState<Insurer[]>([])
   const [preexistingConditions, setPreexistingConditions] = useState<PreexistingCondition[]>([])
   const [selectedPolicyNumber, setSelectedPolicyNumber] = useState('')
   const [createPatientMode, setCreatePatientMode] = useState(false)
@@ -33,6 +36,14 @@ export function NewEmergencyPage() {
   const [submitLoading, setSubmitLoading] = useState(false)
   const [feedbackMessage, setFeedbackMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
+
+  const [showPolicyModal, setShowPolicyModal] = useState(false)
+  const [policySubmitLoading, setPolicySubmitLoading] = useState(false)
+  const [policyForm, setPolicyForm] = useState({
+    insurerId: '',
+    selectedPlanId: '',
+  })
+
   const [patientForm, setPatientForm] = useState({
     firstName: '',
     lastName: '',
@@ -53,6 +64,19 @@ export function NewEmergencyPage() {
   const canSubmitEmergency = useMemo(() => {
     return Boolean(patient && selectedPolicyNumber && emergencyForm.admissionDate)
   }, [emergencyForm.admissionDate, patient, selectedPolicyNumber])
+
+  useEffect(() => {
+    if (token && user?.role === 'registrador_emergencia') {
+      listInsurers(token)
+        .then((data) => {
+          setInsurers(data)
+          if (data.length > 0) {
+            setPolicyForm((prev) => ({ ...prev, insurerId: data[0].id }))
+          }
+        })
+        .catch(console.error)
+    }
+  }, [token, user])
 
   if (user?.role !== 'registrador_emergencia') {
     return (
@@ -141,7 +165,8 @@ export function NewEmergencyPage() {
 
       setCreatePatientMode(false)
       await hydratePatientContext(createdPatient, token)
-      setFeedbackMessage('Paciente registrado. Ahora selecciona una poliza para continuar.')
+      setFeedbackMessage('Paciente registrado. Puedes asignarle una poliza opcionalmente.')
+      setShowPolicyModal(true)
     } catch (error) {
       if (error instanceof ApiError) {
         setErrorMessage(error.message)
@@ -175,7 +200,7 @@ export function NewEmergencyPage() {
         token,
       )
 
-      navigate(`/app/emergencies/${createdEmergency.id}`)
+      navigate(`/app/emergencies/${createdEmergency.id}/review`)
     } catch (error) {
       if (error instanceof ApiError) {
         setErrorMessage(error.message)
@@ -184,6 +209,44 @@ export function NewEmergencyPage() {
       }
     } finally {
       setSubmitLoading(false)
+    }
+  }
+
+  async function handleCreatePolicy(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!token || !patient) return
+
+    const plan = PREDEFINED_PLANS.find(p => p.id === policyForm.selectedPlanId)
+    if (!plan) return
+
+    const generatedPolicyNumber = `POL-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`
+
+    setPolicySubmitLoading(true)
+    try {
+      const createdPolicy = await createPolicy({
+        insurerId: policyForm.insurerId,
+        patientId: patient.id,
+        policyNumber: generatedPolicyNumber,
+        type: plan.type,
+        status: 'vigente',
+        planName: plan.name,
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
+        coverages: plan.coverages
+      }, token)
+
+      setPolicies(prev => [...prev, createdPolicy])
+      setSelectedPolicyNumber(createdPolicy.policyNumber)
+      setShowPolicyModal(false)
+      setFeedbackMessage('Poliza asignada correctamente. Ya puedes continuar con la emergencia.')
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setErrorMessage(error.message)
+      } else {
+        setErrorMessage('No se pudo crear la poliza.')
+      }
+    } finally {
+      setPolicySubmitLoading(false)
     }
   }
 
@@ -211,28 +274,20 @@ export function NewEmergencyPage() {
             <div className="split-grid">
               <label className="field-group">
                 <span>Tipo de documento</span>
-                <select
-                  value={patientLookup.documentType}
-                  onChange={(event) =>
-                    setPatientLookup((current) => ({ ...current, documentType: event.target.value }))
-                  }
-                >
-                  {documentTypes.map((documentType) => (
-                    <option key={documentType} value={documentType}>
-                      {documentType}
-                    </option>
-                  ))}
-                </select>
+                <input value="cedula" disabled />
               </label>
 
               <label className="field-group">
                 <span>Numero</span>
                 <input
                   value={patientLookup.documentNumber}
-                  onChange={(event) =>
-                    setPatientLookup((current) => ({ ...current, documentNumber: event.target.value }))
-                  }
-                  placeholder="00112345678"
+                  onChange={(event) => {
+                    const val = event.target.value.replace(/\D/g, '').slice(0, 10);
+                    setPatientLookup((current) => ({ ...current, documentNumber: val }))
+                  }}
+                  placeholder="Ej: 1712345678"
+                  pattern="\d{10}"
+                  title="La cedula debe tener exactamente 10 digitos numericos"
                   required
                 />
               </label>
@@ -258,8 +313,11 @@ export function NewEmergencyPage() {
                   <input
                     value={patientForm.firstName}
                     onChange={(event) =>
-                      setPatientForm((current) => ({ ...current, firstName: event.target.value }))
+                      setPatientForm((current) => ({ ...current, firstName: event.target.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ\s]/g, '') }))
                     }
+                    minLength={2}
+                    maxLength={50}
+                    title="Solo se permiten letras y espacios"
                     required
                   />
                 </label>
@@ -268,8 +326,11 @@ export function NewEmergencyPage() {
                   <input
                     value={patientForm.lastName}
                     onChange={(event) =>
-                      setPatientForm((current) => ({ ...current, lastName: event.target.value }))
+                      setPatientForm((current) => ({ ...current, lastName: event.target.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ\s]/g, '') }))
                     }
+                    minLength={2}
+                    maxLength={50}
+                    title="Solo se permiten letras y espacios"
                     required
                   />
                 </label>
@@ -281,6 +342,7 @@ export function NewEmergencyPage() {
                   <input
                     type="date"
                     value={patientForm.birthDate}
+                    max={new Date().toISOString().split('T')[0]}
                     onChange={(event) =>
                       setPatientForm((current) => ({ ...current, birthDate: event.target.value }))
                     }
@@ -289,13 +351,18 @@ export function NewEmergencyPage() {
                 </label>
                 <label className="field-group">
                   <span>Genero</span>
-                  <input
+                  <select
                     value={patientForm.gender}
                     onChange={(event) =>
                       setPatientForm((current) => ({ ...current, gender: event.target.value }))
                     }
-                    placeholder="masculino"
-                  />
+                    required
+                  >
+                    <option value="" disabled>Seleccione genero</option>
+                    <option value="masculino">Masculino</option>
+                    <option value="femenino">Femenino</option>
+                    <option value="otro">Otro</option>
+                  </select>
                 </label>
               </div>
 
@@ -304,9 +371,13 @@ export function NewEmergencyPage() {
                   <span>Telefono</span>
                   <input
                     value={patientForm.phoneNumber}
-                    onChange={(event) =>
-                      setPatientForm((current) => ({ ...current, phoneNumber: event.target.value }))
-                    }
+                    onChange={(event) => {
+                      const val = event.target.value.replace(/\D/g, '').slice(0, 10);
+                      setPatientForm((current) => ({ ...current, phoneNumber: val }))
+                    }}
+                    placeholder="Ej: 0912345678"
+                    pattern="\d{7,10}"
+                    title="El telefono debe tener entre 7 y 10 digitos numericos"
                   />
                 </label>
                 <label className="field-group">
@@ -340,11 +411,16 @@ export function NewEmergencyPage() {
         </section>
 
         <section className="panel-card">
-          <div className="section-heading">
+          <div className="section-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
               <h3>2. Contexto del paciente</h3>
               <p>Polizas y preexistencias cargadas a partir del paciente seleccionado.</p>
             </div>
+            {patient && (
+              <button type="button" className="secondary-button" onClick={() => setShowPolicyModal(true)}>
+                Asignar poliza
+              </button>
+            )}
           </div>
 
           {!patient ? (
@@ -514,6 +590,74 @@ export function NewEmergencyPage() {
           </button>
         </form>
       </section>
+
+      {showPolicyModal && (
+        <div className="analysis-modal-overlay" role="presentation">
+          <div className="analysis-modal-card" style={{ maxWidth: '500px' }} role="dialog" aria-modal="true">
+            <span className="eyebrow">Paso opcional</span>
+            <h3>Asignar poliza al paciente</h3>
+            <p className="analysis-modal-copy">
+              Ingresa los detalles de la poliza para <strong>{patient?.firstName} {patient?.lastName}</strong>. Si el paciente no tiene poliza o no la conoces en este momento, puedes omitir este paso.
+            </p>
+
+            <form className="stack-form" onSubmit={handleCreatePolicy} style={{ marginTop: '1.5rem' }}>
+              <label className="field-group">
+                <span>Aseguradora</span>
+                <select
+                  value={policyForm.insurerId}
+                  onChange={(e) => setPolicyForm(curr => ({ ...curr, insurerId: e.target.value }))}
+                  required
+                >
+                  <option value="" disabled>Seleccionar aseguradora</option>
+                  {insurers.map(ins => (
+                    <option key={ins.id} value={ins.id}>{ins.name}</option>
+                  ))}
+                </select>
+              </label>
+              <div className="split-grid">
+                <label className="field-group">
+                  <span>Plan</span>
+                  <select
+                    value={policyForm.selectedPlanId}
+                    onChange={(e) => setPolicyForm(curr => ({ ...curr, selectedPlanId: e.target.value }))}
+                    required
+                  >
+                    <option value="" disabled>Seleccionar un plan</option>
+                    {PREDEFINED_PLANS.map(plan => (
+                      <option key={plan.id} value={plan.id}>{plan.name}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              {policyForm.selectedPlanId && (
+                <div style={{ fontSize: '0.875rem', backgroundColor: 'var(--surface-color)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-color)', marginTop: '0.5rem' }}>
+                  <h4 style={{ margin: '0 0 0.75rem 0', fontWeight: 600, color: 'var(--text-color)' }}>Detalle de coberturas:</h4>
+                  <ul style={{ paddingLeft: '1.25rem', margin: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem', color: 'var(--text-color)' }}>
+                    {PREDEFINED_PLANS.find(p => p.id === policyForm.selectedPlanId)?.coverages.map((cov, idx) => (
+                      <li key={idx} style={{ marginBottom: '0.25rem' }}>
+                        <div><strong>{cov.coverageType}</strong>: {cov.coveragePercentage}% (Monto Max: ${cov.maximumAmount})</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-color)', opacity: 0.8 }}>
+                          {cov.description} · <strong>Aplica en emergencia:</strong> {cov.appliesToEmergency ? 'Sí' : 'No'}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div className="analysis-modal-actions" style={{ marginTop: '2rem' }}>
+                <button type="submit" className="primary-button" disabled={policySubmitLoading}>
+                  {policySubmitLoading ? 'Guardando...' : 'Asignar poliza'}
+                </button>
+                <button type="button" className="secondary-button" onClick={() => setShowPolicyModal(false)}>
+                  Omitir paso
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </section>
   )
 }

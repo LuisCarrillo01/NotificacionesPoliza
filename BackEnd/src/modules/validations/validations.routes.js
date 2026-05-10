@@ -4,9 +4,6 @@ const asyncHandler = require('../../shared/utils/asyncHandler');
 
 const validationsRouter = express.Router();
 
-validationsRouter.post(
-  '/emergencies/:emergencyId/validations',
-  asyncHandler(validationsController.createValidationForEmergency)
-);
+validationsRouter.post('/:validationId/retry', asyncHandler(validationsController.retryValidation));
 
 module.exports = validationsRouter;

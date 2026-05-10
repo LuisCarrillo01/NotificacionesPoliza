@@ -49,6 +49,12 @@ export type PatientPayload = {
   address?: string
 }
 
+export type Insurer = {
+  id: string
+  code: string
+  name: string
+}
+
 export type Policy = {
   id: string
   insuranceCompanyId: string
@@ -61,6 +67,27 @@ export type Policy = {
   startDate: string
   endDate: string
 }
+
+export type CoveragePayload = {
+  coverageType: string
+  maximumAmount?: number
+  coveragePercentage?: number
+  description?: string
+  appliesToEmergency?: boolean
+}
+
+export type PolicyPayload = {
+  insurerId: string
+  patientId: string
+  policyNumber: string
+  type: string
+  status: string
+  planName?: string
+  startDate: string
+  endDate: string
+  coverages?: CoveragePayload[]
+}
+
 
 export type PreexistingCondition = {
   id: string

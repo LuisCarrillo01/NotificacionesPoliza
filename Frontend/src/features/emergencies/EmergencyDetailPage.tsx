@@ -1,45 +1,72 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { env } from '../../config/env'
 import { useAuth } from '../../contexts/useAuth'
-import { ApiError, getEmergencyById, getEmergencyValidation, triggerValidation } from '../../lib/api'
+import { ApiError, getEmergencyById, getEmergencyValidation, retryValidation, triggerValidation } from '../../lib/api'
 import type { Emergency, EmergencyValidation } from '../../types/api'
+import { AnalysisReadyModal } from '../../shared/components/AnalysisReadyModal'
 import { ErrorAlert } from '../../shared/components/ErrorAlert'
 import { LoadingBlock } from '../../shared/components/LoadingBlock'
 import { PageHeader } from '../../shared/components/PageHeader'
 import { StatusBadge } from '../../shared/components/StatusBadge'
 import { getStatusTone } from '../../shared/utils/statusTone'
 
+const VISUAL_RETRY_TIMEOUT_MINUTES = env.validationRetryTimeoutMinutes
+
+function getAnalysisModalStorageKey(emergencyId: string) {
+  return `analysis-modal-seen:${emergencyId}`
+}
+
 export function EmergencyDetailPage() {
   const { emergencyId = '' } = useParams()
-  const { token } = useAuth()
+  const { token, user } = useAuth()
   const [emergency, setEmergency] = useState<Emergency | null>(null)
   const [validation, setValidation] = useState<EmergencyValidation | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isRetryingValidation, setIsRetryingValidation] = useState(false)
+  const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false)
   const [feedbackMessage, setFeedbackMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [validationMessage, setValidationMessage] = useState('')
 
-  useEffect(() => {
-    if (!token || !emergencyId) {
-      return
-    }
+  const canTriggerValidation =
+    user?.role === 'registrador_emergencia' &&
+    emergency?.emergencyStatus === 'registrada' &&
+    !validation
 
-    async function loadEmergency() {
-      const activeToken = token
+  const shouldPollForUpdates =
+    emergency?.emergencyStatus === 'en_validacion' ||
+    (Boolean(validation) && validation?.processStatus !== 'completada' && emergency?.emergencyStatus !== 'cancelada')
 
-      if (!activeToken) {
+  const validationRequestTimestamp = validation?.requestDate ? new Date(validation.requestDate).getTime() : null
+  const validationAgeInMinutes = validationRequestTimestamp
+    ? (Date.now() - validationRequestTimestamp) / 60000
+    : 0
+  const isValidationFailed = validation?.processStatus === 'fallida'
+  const isValidationTimedOutVisually =
+    validation?.processStatus === 'procesando' && validationAgeInMinutes >= VISUAL_RETRY_TIMEOUT_MINUTES
+  const canRetryValidation = Boolean(validation) && (isValidationFailed || isValidationTimedOutVisually)
+
+  const loadEmergencyState = useCallback(
+    async (options?: { showLoading?: boolean }) => {
+      if (!token || !emergencyId) {
         return
       }
 
-      setIsLoading(true)
+      const showLoading = options?.showLoading ?? false
+
+      if (showLoading) {
+        setIsLoading(true)
+      }
+
       setErrorMessage('')
       setValidationMessage('')
 
       try {
         const [loadedEmergency, loadedValidation] = await Promise.all([
-          getEmergencyById(emergencyId, activeToken),
-          getEmergencyValidation(emergencyId, activeToken).catch((error) => {
+          getEmergencyById(emergencyId, token),
+          getEmergencyValidation(emergencyId, token).catch((error) => {
             if (error instanceof ApiError && error.status === 404) {
               return null
             }
@@ -62,12 +89,53 @@ export function EmergencyDetailPage() {
           setErrorMessage('No se pudo cargar el detalle de la emergencia.')
         }
       } finally {
-        setIsLoading(false)
+        if (showLoading) {
+          setIsLoading(false)
+        }
       }
+    },
+    [emergencyId, token]
+  )
+
+  useEffect(() => {
+    if (!emergencyId || !validation?.reportId || validation.processStatus !== 'completada') {
+      return
     }
 
-    void loadEmergency()
-  }, [emergencyId, token])
+    const storageKey = getAnalysisModalStorageKey(emergencyId)
+    const wasAlreadySeen = window.sessionStorage.getItem(storageKey)
+
+    if (!wasAlreadySeen) {
+      setIsAnalysisModalOpen(true)
+      window.sessionStorage.setItem(storageKey, 'true')
+    }
+  }, [emergencyId, validation])
+
+  function handleCloseAnalysisModal() {
+    setIsAnalysisModalOpen(false)
+  }
+
+  useEffect(() => {
+    if (!token || !emergencyId) {
+      return
+    }
+
+    void loadEmergencyState({ showLoading: true })
+  }, [emergencyId, loadEmergencyState, token])
+
+  useEffect(() => {
+    if (!token || !emergencyId || !shouldPollForUpdates) {
+      return
+    }
+
+    const intervalId = window.setInterval(() => {
+      void loadEmergencyState()
+    }, 5000)
+
+    return () => {
+      window.clearInterval(intervalId)
+    }
+  }, [emergencyId, loadEmergencyState, shouldPollForUpdates, token])
 
   async function handleTriggerValidation() {
     if (!token || !emergency) {
@@ -97,16 +165,67 @@ export function EmergencyDetailPage() {
     }
   }
 
+  async function handleRetryValidation() {
+    if (!token || !validation) {
+      return
+    }
+
+    setIsRetryingValidation(true)
+    setErrorMessage('')
+    setFeedbackMessage('')
+
+    try {
+      const retriedValidation = await retryValidation(validation.id, token)
+      setValidation({
+        ...retriedValidation,
+        reportId: null,
+        createdAt: validation.createdAt,
+        updatedAt: new Date().toISOString(),
+      })
+      setValidationMessage('La validacion fue reenviada al agente y seguira actualizandose automaticamente.')
+      setFeedbackMessage('Se reenvio la validacion al agente.')
+      await loadEmergencyState()
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setErrorMessage(error.message)
+      } else {
+        setErrorMessage('No fue posible reintentar la validacion.')
+      }
+    } finally {
+      setIsRetryingValidation(false)
+    }
+  }
+
   return (
     <section className="page-stack">
+      {validation?.reportId && emergency ? (
+        <AnalysisReadyModal
+          isOpen={isAnalysisModalOpen}
+          caseCode={emergency.caseCode}
+          reportId={validation.reportId}
+          onClose={handleCloseAnalysisModal}
+        />
+      ) : null}
+
       <PageHeader
         eyebrow="Detalle del caso"
         title="Emergencia medica"
-        description="Vista operativa del caso, lista para lanzar el proceso de validacion."
+        description="Vista operativa del caso, con estado real de la validacion y acceso al informe cuando exista."
       />
 
       {feedbackMessage ? <div className="feedback-box feedback-success">{feedbackMessage}</div> : null}
       {errorMessage ? <ErrorAlert message={errorMessage} /> : null}
+      {shouldPollForUpdates ? (
+        <div className="feedback-box feedback-info">
+          Actualizando estado automaticamente mientras el caso sigue en analisis. No necesitas recargar la pagina para
+          saber si ya se genero el informe.
+        </div>
+      ) : null}
+      {emergency?.emergencyStatus === 'cancelada' ? (
+        <div className="feedback-box feedback-info">
+          Esta emergencia fue cancelada por el registrador y ya no admite envio a validacion.
+        </div>
+      ) : null}
 
       {isLoading || !emergency ? (
         <LoadingBlock title="Cargando caso" description="Recuperando detalle de la emergencia seleccionada." />
@@ -164,14 +283,16 @@ export function EmergencyDetailPage() {
               <p>{emergency.observations ?? 'Sin observaciones adicionales.'}</p>
             </div>
 
-            <button
-              type="button"
-              className="primary-button"
-              disabled={isSubmitting || emergency.emergencyStatus === 'en_validacion'}
-              onClick={handleTriggerValidation}
-            >
-              {isSubmitting ? 'Enviando validacion...' : 'Enviar a validacion'}
-            </button>
+            {canTriggerValidation ? (
+              <button
+                type="button"
+                className="primary-button"
+                disabled={isSubmitting}
+                onClick={handleTriggerValidation}
+              >
+                {isSubmitting ? 'Enviando validacion...' : 'Enviar a validacion'}
+              </button>
+            ) : null}
           </section>
 
           <section className="panel-card">
@@ -215,20 +336,59 @@ export function EmergencyDetailPage() {
                   </div>
                 </dl>
 
+                {validation.processStatus === 'procesando' && !isValidationTimedOutVisually ? (
+                  <div className="feedback-box feedback-info">
+                    La validacion sigue en analisis. Cuando el agente responda, esta vista mostrara el resultado y el
+                    acceso al informe automaticamente.
+                  </div>
+                ) : null}
+
+                {isValidationTimedOutVisually ? (
+                  <div className="feedback-box feedback-warning">
+                    La validacion lleva mas de {VISUAL_RETRY_TIMEOUT_MINUTES} minutos en procesamiento. Puedes
+                    reintentarlo sobre la misma validacion.
+                  </div>
+                ) : null}
+
+                {isValidationFailed ? (
+                  <div className="feedback-box feedback-danger">
+                    <strong>La validacion fallo.</strong>
+                    <br />
+                    {validation.errorDetails ?? 'No se recibio detalle tecnico del error.'}
+                    <br />
+                    Puedes reintentar el envio usando la misma validacion para no perder el historial del caso.
+                  </div>
+                ) : null}
+
+                {canRetryValidation ? (
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={isRetryingValidation}
+                    onClick={handleRetryValidation}
+                  >
+                    {isRetryingValidation ? 'Reintentando validacion...' : 'Reintentar validacion'}
+                  </button>
+                ) : null}
+
                 {validation.reportId ? (
                   <Link className="primary-button link-button" to={`/app/reports/${validation.reportId}`}>
                     Ver informe
                   </Link>
                 ) : (
                   <div className="feedback-box feedback-info">
-                    El informe aun no esta disponible para esta validacion.
+                    El informe aun no esta disponible para esta validacion. Se habilitara automaticamente cuando el
+                    backend reciba el resultado final del agente.
                   </div>
                 )}
               </>
             ) : (
               <div className="empty-state compact-empty">
                 <h3>Sin validacion disponible</h3>
-                <p>{validationMessage || 'Cuando dispares la validacion, aqui veras el estado real del proceso.'}</p>
+                <p>
+                  {validationMessage ||
+                    'Cuando dispares la validacion, aqui veras el estado real del proceso y el informe aparecera en esta misma pantalla.'}
+                </p>
               </div>
             )}
 

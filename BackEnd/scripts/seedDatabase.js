@@ -24,11 +24,21 @@ const DEMO_IDS = {
   },
   patients: {
     juan: '40000000-0000-0000-0000-000000000001',
-    maria: '40000000-0000-0000-0000-000000000002'
+    maria: '40000000-0000-0000-0000-000000000002',
+    ind_basico: '40000000-0000-0000-0000-000000000003',
+    ind_plus: '40000000-0000-0000-0000-000000000004',
+    fam_est: '40000000-0000-0000-0000-000000000005',
+    emp_base: '40000000-0000-0000-0000-000000000006',
+    emp_prem: '40000000-0000-0000-0000-000000000007'
   },
   policies: {
     juan: '50000000-0000-0000-0000-000000000001',
-    maria: '50000000-0000-0000-0000-000000000002'
+    maria: '50000000-0000-0000-0000-000000000002',
+    ind_basico: '50000000-0000-0000-0000-000000000003',
+    ind_plus: '50000000-0000-0000-0000-000000000004',
+    fam_est: '50000000-0000-0000-0000-000000000005',
+    emp_base: '50000000-0000-0000-0000-000000000006',
+    emp_prem: '50000000-0000-0000-0000-000000000007'
   },
   emergencies: {
     completed: '60000000-0000-0000-0000-000000000001',
@@ -536,6 +546,66 @@ async function seedDatabase() {
         phone: '8095553002',
         email: 'maria.lopez@paciente.demo',
         address: 'Villa Olga, Santiago'
+      },
+      {
+        id: DEMO_IDS.patients.ind_basico,
+        documentType: 'cedula',
+        documentNumber: '00111111111',
+        firstName: 'Carlos',
+        lastName: 'Basico',
+        birthDate: '1995-01-01',
+        gender: 'masculino',
+        phone: '8095554001',
+        email: 'carlos.basico@paciente.demo',
+        address: 'Santo Domingo'
+      },
+      {
+        id: DEMO_IDS.patients.ind_plus,
+        documentType: 'cedula',
+        documentNumber: '00122222222',
+        firstName: 'Ana',
+        lastName: 'Plus',
+        birthDate: '1992-02-02',
+        gender: 'femenino',
+        phone: '8095554002',
+        email: 'ana.plus@paciente.demo',
+        address: 'Santiago'
+      },
+      {
+        id: DEMO_IDS.patients.fam_est,
+        documentType: 'cedula',
+        documentNumber: '00133333333',
+        firstName: 'Luis',
+        lastName: 'Familiar',
+        birthDate: '1980-03-03',
+        gender: 'masculino',
+        phone: '8095554003',
+        email: 'luis.familiar@paciente.demo',
+        address: 'La Vega'
+      },
+      {
+        id: DEMO_IDS.patients.emp_base,
+        documentType: 'cedula',
+        documentNumber: '00144444444',
+        firstName: 'Elena',
+        lastName: 'Empresarial',
+        birthDate: '1988-04-04',
+        gender: 'femenino',
+        phone: '8095554004',
+        email: 'elena.emp@paciente.demo',
+        address: 'San Cristobal'
+      },
+      {
+        id: DEMO_IDS.patients.emp_prem,
+        documentType: 'cedula',
+        documentNumber: '00155555555',
+        firstName: 'Pedro',
+        lastName: 'Premium',
+        birthDate: '1975-05-05',
+        gender: 'masculino',
+        phone: '8095554005',
+        email: 'pedro.premium@paciente.demo',
+        address: 'Punta Cana'
       }
     ];
 
@@ -563,6 +633,66 @@ async function seedDatabase() {
         generalConditions: 'Poliza suspendida por mora. Requiere regularizacion antes de usar beneficios.',
         startDate: '2024-01-01',
         endDate: '2026-01-01'
+      },
+      {
+        id: DEMO_IDS.policies.ind_basico,
+        insurerId: DEMO_IDS.insurers.primera,
+        patientId: DEMO_IDS.patients.ind_basico,
+        policyNumber: 'POL-IND-BAS-01',
+        type: 'individual',
+        status: 'vigente',
+        planName: 'Plan Individual Básico',
+        generalConditions: 'Cliente individual con cobertura mínima.',
+        startDate: '2025-01-01',
+        endDate: '2026-12-31'
+      },
+      {
+        id: DEMO_IDS.policies.ind_plus,
+        insurerId: DEMO_IDS.insurers.primera,
+        patientId: DEMO_IDS.patients.ind_plus,
+        policyNumber: 'POL-IND-PLUS-01',
+        type: 'individual',
+        status: 'vigente',
+        planName: 'Plan Individual Plus',
+        generalConditions: 'Cliente individual con cobertura media.',
+        startDate: '2025-01-01',
+        endDate: '2026-12-31'
+      },
+      {
+        id: DEMO_IDS.policies.fam_est,
+        insurerId: DEMO_IDS.insurers.familiar,
+        patientId: DEMO_IDS.patients.fam_est,
+        policyNumber: 'POL-FAM-EST-01',
+        type: 'familiar',
+        status: 'vigente',
+        planName: 'Plan Familiar Estándar',
+        generalConditions: 'Paciente que pertenece a una póliza familiar.',
+        startDate: '2025-01-01',
+        endDate: '2026-12-31'
+      },
+      {
+        id: DEMO_IDS.policies.emp_base,
+        insurerId: DEMO_IDS.insurers.primera,
+        patientId: DEMO_IDS.patients.emp_base,
+        policyNumber: 'POL-EMP-BASE-01',
+        type: 'empresarial',
+        status: 'vigente',
+        planName: 'Plan Empresarial Base',
+        generalConditions: 'Empleado afiliado por convenio empresarial.',
+        startDate: '2025-01-01',
+        endDate: '2026-12-31'
+      },
+      {
+        id: DEMO_IDS.policies.emp_prem,
+        insurerId: DEMO_IDS.insurers.primera,
+        patientId: DEMO_IDS.patients.emp_prem,
+        policyNumber: 'POL-EMP-PREM-01',
+        type: 'empresarial',
+        status: 'vigente',
+        planName: 'Plan Empresarial Premium',
+        generalConditions: 'Empleado con convenio empresarial amplio.',
+        startDate: '2025-01-01',
+        endDate: '2026-12-31'
       }
     ];
 
@@ -589,6 +719,163 @@ async function seedDatabase() {
         maximumAmount: 50000,
         coveragePercentage: 60,
         description: 'Cobertura suspendida hasta regularizar la cuenta.',
+        appliesToEmergency: false
+      },
+      // Plan Individual Básico
+      {
+        policyId: DEMO_IDS.policies.ind_basico,
+        coverageType: 'emergencia',
+        maximumAmount: 800.00,
+        coveragePercentage: 70,
+        description: 'Cobertura de emergencia.',
+        appliesToEmergency: true
+      },
+      {
+        policyId: DEMO_IDS.policies.ind_basico,
+        coverageType: 'medicamentos',
+        maximumAmount: 200.00,
+        coveragePercentage: 60,
+        description: 'Cobertura de medicamentos.',
+        appliesToEmergency: true
+      },
+      {
+        policyId: DEMO_IDS.policies.ind_basico,
+        coverageType: 'otros',
+        maximumAmount: 150.00,
+        coveragePercentage: 50,
+        description: 'Otras coberturas.',
+        appliesToEmergency: false
+      },
+      // Plan Individual Plus
+      {
+        policyId: DEMO_IDS.policies.ind_plus,
+        coverageType: 'emergencia',
+        maximumAmount: 2000.00,
+        coveragePercentage: 85,
+        description: 'Cobertura de emergencia.',
+        appliesToEmergency: true
+      },
+      {
+        policyId: DEMO_IDS.policies.ind_plus,
+        coverageType: 'internamiento',
+        maximumAmount: 1500.00,
+        coveragePercentage: 80,
+        description: 'Cobertura de internamiento.',
+        appliesToEmergency: true
+      },
+      {
+        policyId: DEMO_IDS.policies.ind_plus,
+        coverageType: 'medicamentos',
+        maximumAmount: 500.00,
+        coveragePercentage: 75,
+        description: 'Cobertura de medicamentos.',
+        appliesToEmergency: true
+      },
+      {
+        policyId: DEMO_IDS.policies.ind_plus,
+        coverageType: 'cirugia',
+        maximumAmount: 2500.00,
+        coveragePercentage: 70,
+        description: 'Cobertura de cirugia.',
+        appliesToEmergency: true
+      },
+      // Plan Familiar Estándar
+      {
+        policyId: DEMO_IDS.policies.fam_est,
+        coverageType: 'emergencia',
+        maximumAmount: 2500.00,
+        coveragePercentage: 85,
+        description: 'Cobertura de emergencia.',
+        appliesToEmergency: true
+      },
+      {
+        policyId: DEMO_IDS.policies.fam_est,
+        coverageType: 'internamiento',
+        maximumAmount: 2000.00,
+        coveragePercentage: 80,
+        description: 'Cobertura de internamiento.',
+        appliesToEmergency: true
+      },
+      {
+        policyId: DEMO_IDS.policies.fam_est,
+        coverageType: 'medicamentos',
+        maximumAmount: 600.00,
+        coveragePercentage: 75,
+        description: 'Cobertura de medicamentos.',
+        appliesToEmergency: true
+      },
+      {
+        policyId: DEMO_IDS.policies.fam_est,
+        coverageType: 'cirugia',
+        maximumAmount: 3000.00,
+        coveragePercentage: 75,
+        description: 'Cobertura de cirugia.',
+        appliesToEmergency: true
+      },
+      // Plan Empresarial Base
+      {
+        policyId: DEMO_IDS.policies.emp_base,
+        coverageType: 'emergencia',
+        maximumAmount: 1800.00,
+        coveragePercentage: 80,
+        description: 'Cobertura de emergencia.',
+        appliesToEmergency: true
+      },
+      {
+        policyId: DEMO_IDS.policies.emp_base,
+        coverageType: 'internamiento',
+        maximumAmount: 1500.00,
+        coveragePercentage: 75,
+        description: 'Cobertura de internamiento.',
+        appliesToEmergency: true
+      },
+      {
+        policyId: DEMO_IDS.policies.emp_base,
+        coverageType: 'medicamentos',
+        maximumAmount: 400.00,
+        coveragePercentage: 70,
+        description: 'Cobertura de medicamentos.',
+        appliesToEmergency: true
+      },
+      // Plan Empresarial Premium
+      {
+        policyId: DEMO_IDS.policies.emp_prem,
+        coverageType: 'emergencia',
+        maximumAmount: 5000.00,
+        coveragePercentage: 95,
+        description: 'Cobertura de emergencia.',
+        appliesToEmergency: true
+      },
+      {
+        policyId: DEMO_IDS.policies.emp_prem,
+        coverageType: 'internamiento',
+        maximumAmount: 4000.00,
+        coveragePercentage: 90,
+        description: 'Cobertura de internamiento.',
+        appliesToEmergency: true
+      },
+      {
+        policyId: DEMO_IDS.policies.emp_prem,
+        coverageType: 'medicamentos',
+        maximumAmount: 1000.00,
+        coveragePercentage: 85,
+        description: 'Cobertura de medicamentos.',
+        appliesToEmergency: true
+      },
+      {
+        policyId: DEMO_IDS.policies.emp_prem,
+        coverageType: 'cirugia',
+        maximumAmount: 6000.00,
+        coveragePercentage: 85,
+        description: 'Cobertura de cirugia.',
+        appliesToEmergency: true
+      },
+      {
+        policyId: DEMO_IDS.policies.emp_prem,
+        coverageType: 'otros',
+        maximumAmount: 1000.00,
+        coveragePercentage: 70,
+        description: 'Otras coberturas.',
         appliesToEmergency: false
       }
     ];

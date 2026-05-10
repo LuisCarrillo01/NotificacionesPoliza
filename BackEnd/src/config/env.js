@@ -45,6 +45,7 @@ const environmentConfig = {
   validationAgentBaseUrl: getRequiredEnvironmentVariable('VALIDATION_AGENT_BASE_URL'),
   validationAgentValidatePath: getRequiredEnvironmentVariable('VALIDATION_AGENT_VALIDATE_PATH'),
   validationAgentTimeoutMs: parseNumber(process.env.VALIDATION_AGENT_TIMEOUT_MS, 10000),
+  validationRetryTimeoutMinutes: parseNumber(process.env.VALIDATION_RETRY_TIMEOUT_MINUTES, 3),
   validationResultCallbackToken: process.env.VALIDATION_RESULT_CALLBACK_TOKEN || '',
   bcryptSaltRounds: parseNumber(process.env.BCRYPT_SALT_ROUNDS, 10),
   defaultPageSize: parseNumber(process.env.DEFAULT_PAGE_SIZE, 10),

@@ -23,6 +23,16 @@ async function listEmergencies(request, response) {
   response.status(200).json(emergencies);
 }
 
+async function cancelEmergency(request, response) {
+  const cancelledEmergency = await emergenciesService.cancelEmergency(
+    request.params.emergencyId,
+    request.body,
+    request.authenticatedUser
+  );
+
+  response.status(200).json(cancelledEmergency);
+}
+
 async function getLatestValidationByEmergencyId(request, response) {
   const validation = await emergenciesService.getLatestValidationByEmergencyId(
     request.params.emergencyId,
@@ -35,5 +45,6 @@ module.exports = {
   createEmergency,
   getEmergencyById,
   listEmergencies,
+  cancelEmergency,
   getLatestValidationByEmergencyId
 };

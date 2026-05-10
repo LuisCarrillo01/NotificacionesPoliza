@@ -37,7 +37,7 @@ apiRouter.get(
 apiRouter.use('/policies', authenticationMiddleware, policiesRouter);
 apiRouter.use(authenticationMiddleware, preexistingConditionsRouter);
 apiRouter.use('/emergencies', authenticationMiddleware, emergenciesRouter);
-apiRouter.use(authenticationMiddleware, validationsRouter);
+apiRouter.use('/validations', authenticationMiddleware, validationsRouter);
 apiRouter.use('/reports', authenticationMiddleware, reportsRouter);
 apiRouter.use('/notifications', authenticationMiddleware, notificationsRouter);
 

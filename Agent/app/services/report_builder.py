@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
+from typing import Any
 
 from app.schemas.contracts import GeneratedReportSections, ReportPayload, ValidationRequest, ValidationResultPayload
 from app.services.groq_client import groq_report_client
@@ -15,9 +16,35 @@ def _build_report_code(case_code: str, validation_id: str) -> str:
     return f"INF-{case_code}-{validation_id[:8]}"
 
 
+def _strip_null_characters(value: str) -> str:
+    return value.replace("\x00", "")
+
+
+def _sanitize_json_strings(value: Any) -> Any:
+    if isinstance(value, str):
+        return _strip_null_characters(value)
+
+    if isinstance(value, list):
+        return [_sanitize_json_strings(item) for item in value]
+
+    if isinstance(value, dict):
+        return {key: _sanitize_json_strings(nested_value) for key, nested_value in value.items()}
+
+    return value
+
+
+def _format_recommended_checks(recommended_checks: list[str]) -> str:
+    return " ".join(f"- {check}" for check in recommended_checks)
+
+
 def _build_fallback_sections(result_payload: ValidationResultPayload, facts: dict) -> GeneratedReportSections:
     decision = result_payload.decision
     active_conditions = facts.get("active_preexisting_names", [])
+    summary_payload = result_payload.summaryPayload
+    manual_review_reason = summary_payload.get("manualReviewReason")
+    recommended_checks = summary_payload.get("recommendedChecks", [])
+    critical_related = summary_payload.get("activePreexistingCriticalRelated", [])
+    signals = summary_payload.get("signals", [])
 
     if decision == "aprobado":
         executive_summary = "La poliza esta vigente y cubre la emergencia registrada."
@@ -28,15 +55,28 @@ def _build_fallback_sections(result_payload: ValidationResultPayload, facts: dic
         decision_reason = "La poliza no esta vigente o no cuenta con cobertura de emergencia aplicable."
         suggested_action = "Solicitar validacion administrativa adicional al hospital."
     else:
-        executive_summary = "El caso requiere revision manual antes de confirmar cobertura."
-        decision_reason = "Se detectaron preexistencias activas que requieren evaluacion humana."
-        suggested_action = "Escalar el caso a un analista de cobertura."
+        executive_summary = "El caso requiere revision manual antes de confirmar la cobertura aplicable."
+        if manual_review_reason == "critical_related_preexisting":
+            decision_reason = (
+                "Se detecto una preexistencia critica relacionada con la emergencia reportada: "
+                f"{', '.join(critical_related) or ', '.join(active_conditions)}."
+            )
+        else:
+            decision_reason = "Faltan datos concluyentes para emitir una decision automatica segura."
+        suggested_action = (
+            _format_recommended_checks(recommended_checks)
+            if recommended_checks
+            else "Escalar el caso a un analista de cobertura con la informacion clinica disponible."
+        )
 
     preexisting_analysis = (
         f"Preexistencias activas detectadas: {', '.join(active_conditions)}."
         if active_conditions
         else "No se encontraron preexistencias activas relevantes."
     )
+
+    if decision == "revision_manual" and signals:
+        preexisting_analysis = f"{preexisting_analysis} Senales de riesgo: {'; '.join(signals)}."
 
     coverage_analysis = (
         f"Estado de poliza: {facts.get('policy_status')}. "
@@ -62,6 +102,11 @@ async def build_report(
         "policyStatus": facts.get("policy_status"),
         "decision": result_payload.decision,
         "requiresManualReview": result_payload.requiresManualReview,
+        "manualReviewReason": result_payload.summaryPayload.get("manualReviewReason"),
+        "signals": result_payload.summaryPayload.get("signals", []),
+        "recommendedChecks": result_payload.summaryPayload.get("recommendedChecks", []),
+        "criticalRelatedPreexisting": result_payload.summaryPayload.get("activePreexistingCriticalRelated", []),
+        "informativePreexisting": result_payload.summaryPayload.get("activePreexistingInformative", []),
         "hasEmergencyCoverage": facts.get("has_emergency_coverage"),
         "matchingEmergencyCoverages": facts.get("matching_emergency_coverages"),
         "activePreexistingConditions": facts.get("active_preexisting_names", []),
@@ -86,19 +131,21 @@ async def build_report(
         except Exception as error:  # pragma: no cover - defensive fallback
             logger.warning("Groq report generation failed, using fallback: %s", error)
 
+    sanitized_content_json: dict[str, Any] = _sanitize_json_strings({
+        "source": report_source,
+        "caseCode": request.emergency.codigo_caso,
+        "decision": result_payload.decision,
+    })
+
     report = ReportPayload(
-        reportCode=_build_report_code(request.emergency.codigo_caso, request.validationId),
-        executiveSummary=sections.executiveSummary,
-        coverageAnalysis=sections.coverageAnalysis,
-        preexistingConditionsAnalysis=sections.preexistingConditionsAnalysis,
-        decisionReason=sections.decisionReason,
-        suggestedAction=sections.suggestedAction,
+        reportCode=_strip_null_characters(_build_report_code(request.emergency.codigo_caso, request.validationId)),
+        executiveSummary=_strip_null_characters(sections.executiveSummary),
+        coverageAnalysis=_strip_null_characters(sections.coverageAnalysis),
+        preexistingConditionsAnalysis=_strip_null_characters(sections.preexistingConditionsAnalysis),
+        decisionReason=_strip_null_characters(sections.decisionReason),
+        suggestedAction=_strip_null_characters(sections.suggestedAction),
         generatedAt=datetime.now(UTC),
-        contentJson={
-            "source": report_source,
-            "caseCode": request.emergency.codigo_caso,
-            "decision": result_payload.decision,
-        },
+        contentJson=sanitized_content_json,
     )
 
     return result_payload.model_copy(update={"report": report})

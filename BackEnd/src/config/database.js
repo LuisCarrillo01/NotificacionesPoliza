@@ -6,7 +6,11 @@ const databasePool = new Pool({
   ssl: environmentConfig.databaseSsl ? { rejectUnauthorized: false } : false
 });
 
-async function executeQuery(queryText, queryParams = []) {
+async function executeQuery(queryText, queryParams = [], client = null) {
+  if (client) {
+    return client.query(queryText, queryParams);
+  }
+
   return databasePool.query(queryText, queryParams);
 }
 

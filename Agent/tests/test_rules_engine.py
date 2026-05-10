@@ -7,13 +7,19 @@ from app.schemas.contracts import (
     PreexistingConditionPayload,
     ValidationRequest,
 )
-from app.services.rules_engine import build_result_payload_from_facts, evaluate_emergency_coverage, evaluate_policy_status, evaluate_preexisting_conditions
+from app.services.rules_engine import (
+    build_result_payload_from_facts,
+    evaluate_emergency_coverage,
+    evaluate_policy_status,
+    evaluate_preexisting_conditions,
+    normalize_emergency_type,
+)
 
 
-def build_request() -> ValidationRequest:
+def build_request(emergency_type: str = "cardiaca") -> ValidationRequest:
     return ValidationRequest(
         validationId="validation-1",
-        emergency=EmergencyPayload(codigo_caso="EM-0001", tipo_emergencia="cardiaca"),
+        emergency=EmergencyPayload(codigo_caso="EM-0001", tipo_emergencia=emergency_type),
         patient=PatientPayload(nombres="Juan", apellidos="Perez"),
         policy=PolicyPayload(numero_poliza="POL-0001", estado="vigente"),
         coverages=[CoveragePayload(aplica_emergencia=True)],
@@ -22,30 +28,78 @@ def build_request() -> ValidationRequest:
     )
 
 
+def build_facts(request: ValidationRequest, conditions: list[PreexistingConditionPayload], coverages=None):
+    facts = {}
+    facts.update(evaluate_policy_status(request.policy))
+    selected_coverages = request.coverages if coverages is None else coverages
+    facts.update(evaluate_emergency_coverage(selected_coverages))
+    facts.update(evaluate_preexisting_conditions(conditions, request.emergency.tipo_emergencia))
+    return facts
+
+
 def test_policy_status_uses_estado_vigente():
     facts = evaluate_policy_status(PolicyPayload(numero_poliza="POL-1", estado="vigente"))
     assert facts["policy_is_active"] is True
 
 
-def test_rejects_without_emergency_coverage():
+def test_normalizes_unknown_emergency_type_to_general():
+    assert normalize_emergency_type("rara") == "GENERAL"
+
+
+def test_rejects_without_emergency_coverage_when_coverage_data_is_conclusive():
     request = build_request()
-    facts = {}
-    facts.update(evaluate_policy_status(request.policy))
-    facts.update(evaluate_emergency_coverage([CoveragePayload(aplica_emergencia=False)]))
-    facts.update(evaluate_preexisting_conditions([]))
+    facts = build_facts(request, [], [CoveragePayload(aplica_emergencia=False)])
     result = build_result_payload_from_facts(request, facts)
     assert result.decision == "rechazado"
 
 
-def test_manual_review_with_active_preexisting_condition():
-    request = build_request()
-    facts = {}
-    facts.update(evaluate_policy_status(request.policy))
-    facts.update(evaluate_emergency_coverage(request.coverages))
-    facts.update(
-        evaluate_preexisting_conditions(
-            [PreexistingConditionPayload(nombre_condicion="Hipertension", activa=True)]
-        )
+def test_manual_review_for_cardiac_hypertension():
+    request = build_request("cardiaca")
+    facts = build_facts(
+        request,
+        [PreexistingConditionPayload(nombre_condicion="Hipertension arterial", activa=True)],
     )
     result = build_result_payload_from_facts(request, facts)
     assert result.decision == "revision_manual"
+    assert result.summaryPayload["manualReviewReason"] == "critical_related_preexisting"
+    assert result.summaryPayload["recommendedChecks"]
+
+
+def test_respiratory_asthma_without_severity_is_informative_only():
+    request = build_request("respiratoria")
+    facts = build_facts(
+        request,
+        [PreexistingConditionPayload(nombre_condicion="Asma", activa=True)],
+    )
+    result = build_result_payload_from_facts(request, facts)
+    assert result.decision == "aprobado"
+    assert facts["active_preexisting_informative_names"] == ["Asma"]
+
+
+def test_respiratory_severe_asthma_forces_manual_review():
+    request = build_request("respiratoria")
+    facts = build_facts(
+        request,
+        [PreexistingConditionPayload(nombre_condicion="Asma cronica severa", activa=True)],
+    )
+    result = build_result_payload_from_facts(request, facts)
+    assert result.decision == "revision_manual"
+    assert facts["active_preexisting_related_critical_names"] == ["Asma cronica severa"]
+
+
+def test_traumatic_preexisting_condition_does_not_force_manual_review():
+    request = build_request("traumatica")
+    facts = build_facts(
+        request,
+        [PreexistingConditionPayload(nombre_condicion="Osteoporosis", activa=True)],
+    )
+    result = build_result_payload_from_facts(request, facts)
+    assert result.decision == "aprobado"
+
+
+def test_empty_coverages_trigger_manual_review_for_inconclusive_data():
+    request = build_request("general")
+    facts = build_facts(request, [], [])
+    result = build_result_payload_from_facts(request, facts)
+    assert result.decision == "revision_manual"
+    assert result.summaryPayload["manualReviewReason"] == "data_inconclusive"

@@ -64,10 +64,20 @@ async function findEmergenciesByHospitalId(hospitalId) {
   return queryResult.rows;
 }
 
-async function updateEmergencyStatus(emergencyId, emergencyStatus) {
+async function updateEmergencyStatus(emergencyId, emergencyStatus, client = null) {
   const queryResult = await executeQuery(
     'UPDATE emergencias SET estado = $2 WHERE id = $1 RETURNING *',
-    [emergencyId, emergencyStatus]
+    [emergencyId, emergencyStatus],
+    client
+  );
+
+  return queryResult.rows[0] || null;
+}
+
+async function cancelEmergency(emergencyId, observations, emergencyStatus) {
+  const queryResult = await executeQuery(
+    'UPDATE emergencias SET estado = $2, observaciones = $3, updated_at = now() WHERE id = $1 RETURNING *',
+    [emergencyId, emergencyStatus, observations]
   );
 
   return queryResult.rows[0] || null;
@@ -78,5 +88,6 @@ module.exports = {
   findLatestCaseCodeByDatePrefix,
   findEmergencyById,
   findEmergenciesByHospitalId,
-  updateEmergencyStatus
+  updateEmergencyStatus,
+  cancelEmergency
 };

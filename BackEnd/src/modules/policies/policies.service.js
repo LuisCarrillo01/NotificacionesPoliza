@@ -58,8 +58,29 @@ async function getCoveragesByPolicyId(policyId) {
   return coverageRecords.map(mapCoverageRecord);
 }
 
+async function createPolicy(policyData) {
+  const policyRecord = await policyRepository.insertPolicy(policyData);
+  
+  if (policyData.coverages && policyData.coverages.length > 0) {
+    await policyRepository.insertCoverages(policyRecord.id, policyData.coverages);
+  }
+  
+  return mapPolicyRecord(policyRecord);
+}
+
+async function getInsurers() {
+  const insurers = await policyRepository.findAllInsurers();
+  return insurers.map(ins => ({
+    id: ins.id,
+    code: ins.codigo,
+    name: ins.nombre
+  }));
+}
+
 module.exports = {
   getPoliciesByPatientId,
   getPolicyById,
-  getCoveragesByPolicyId
+  getCoveragesByPolicyId,
+  createPolicy,
+  getInsurers
 };

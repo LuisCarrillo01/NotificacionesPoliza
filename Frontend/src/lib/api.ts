@@ -4,12 +4,14 @@ import type {
   Emergency,
   EmergencyPayload,
   EmergencyValidation,
+  Insurer,
   LoginPayload,
   LoginResponse,
   Notification,
   Patient,
   PatientPayload,
   Policy,
+  PolicyPayload,
   PreexistingCondition,
   Report,
   Validation,
@@ -91,8 +93,23 @@ export function triggerValidation(emergencyId: string, token: string) {
   })
 }
 
+export function retryValidation(validationId: string, token: string) {
+  return request<Validation>(`/validations/${validationId}/retry`, {
+    method: 'POST',
+    token,
+  })
+}
+
 export function getEmergencyValidation(emergencyId: string, token: string) {
   return request<EmergencyValidation>(`/emergencies/${emergencyId}/validation`, { token })
+}
+
+export function cancelEmergency(emergencyId: string, token: string, cancellationReason?: string) {
+  return request<Emergency>(`/emergencies/${emergencyId}/cancel`, {
+    method: 'PATCH',
+    body: cancellationReason ? { cancellationReason } : {},
+    token,
+  })
 }
 
 export function getPatientByDocument(
@@ -113,6 +130,18 @@ export function createPatient(payload: PatientPayload, token: string) {
 
 export function listPoliciesByPatient(patientId: string, token: string) {
   return request<Policy[]>(`/patients/${patientId}/policies`, { token })
+}
+
+export function createPolicy(payload: PolicyPayload, token: string) {
+  return request<Policy>('/policies', {
+    method: 'POST',
+    body: payload,
+    token,
+  })
+}
+
+export function listInsurers(token: string) {
+  return request<Insurer[]>('/policies/insurers', { token })
 }
 
 export function listPreexistingConditionsByPatient(patientId: string, token: string) {
