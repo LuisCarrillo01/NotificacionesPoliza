@@ -21,16 +21,16 @@ Este usuario es la persona que se encuentra en la sala de emergencias (front-des
 **Proceso:**
 1. Inicia sesión en el sistema (ej: `registrador.demo` / `123456`).
 2. Ve al menú **"Emergencias"** y haz clic en **"Nueva emergencia"**.
-3. Busca al paciente por su cédula. Si no existe, el sistema te pedirá **registrar al paciente**.
-4. Tras registrar los datos personales del paciente, el sistema te preguntará si el paciente tiene **preexistencias médicas** (puedes agregar enfermedades como "Asma" o darle a "Omitir").
-5. Luego, el sistema te pedirá **asignarle una póliza**. Selecciona la aseguradora (ej. Primera Salud Seguros) y el plan correspondiente.
-6. Finalmente, llena los detalles de la emergencia (tipo, nivel de prioridad, observaciones) y haz clic en **"Registrar emergencia"**.
+3. Busca al paciente por su cédula. Si no existe, regístralo, agrega sus **preexistencias médicas** y asígnale una **póliza**.
+4. Llena los detalles de la emergencia y haz clic en **"Registrar emergencia"**.
+5. Una vez registrada, serás redirigido al detalle de la emergencia. Aquí **debes hacer clic en "Enviar a validación"**. 
+6. Esto enviará el caso al **Agente de Inteligencia Artificial** para que determine la cobertura. El estado pasará a "en validación".
 
 ---
 
 ## 📋 Paso 2: El Receptor de Admisiones (Hospital)
 
-Este usuario representa al departamento de facturación o admisiones del hospital, encargado de validar si la aseguradora va a cubrir la emergencia del paciente.
+Este usuario representa al departamento de facturación o admisiones del hospital. **Solo tiene permisos de lectura** para auditar y revisar las validaciones de su hospital.
 
 **Usuarios de prueba disponibles:**
 - `admisiones.demo` (Hospital Central)
@@ -38,26 +38,20 @@ Este usuario representa al departamento de facturación o admisiones del hospita
 
 **Proceso:**
 1. Inicia sesión en el sistema (ej: `admisiones.demo` / `123456`).
-2. Notarás que tienes una alerta en la campana de **Notificaciones** informando que se ha registrado una nueva emergencia.
-3. Ve a **"Validaciones"** y haz clic en **"Nueva validación"**.
-4. Selecciona la emergencia que el registrador acaba de crear.
-5. Haz clic en **"Solicitar validación por IA"**. 
-6. ¡Aquí ocurre la magia! El sistema enviará toda la información clínica y de la póliza al **Agente de Inteligencia Artificial**.
-7. En unos segundos, recibirás un **Informe Detallado** donde la IA determina si la emergencia tiene cobertura o no, evaluando las reglas del plan y las preexistencias declaradas.
-8. Una vez la validación finalice, el sistema notificará automáticamente a la aseguradora.
+2. Ve a **"Emergencias"**. Verás la lista de todos los casos, pero notarás que no tienes habilitado el botón de "Nueva emergencia" ni el de "Validar", ya que tu rol es solo revisar.
+3. Ve a **"Notificaciones"**. Cuando el Agente de Inteligencia Artificial termine de procesar la validación que solicitó el registrador, **recibirás una notificación aquí**.
+4. Haz clic en la notificación o busca la emergencia en la lista, haz clic en "Ver detalle" y luego en **"Ver informe"** para leer la decisión tomada por la IA.
 
 ---
 
 ## 🛡️ Paso 3: El Analista de la Aseguradora
 
-Este usuario pertenece a la entidad aseguradora y supervisa las validaciones y los fondos aprobados para los distintos hospitales.
+Este usuario pertenece a la entidad aseguradora y supervisa las validaciones de sus afiliados en distintos hospitales.
 
 **Usuario de prueba disponible:**
 - `aseguradora.demo` (Primera Salud Seguros)
 
 **Proceso:**
 1. Inicia sesión en el sistema (`aseguradora.demo` / `123456`).
-2. Ve a tus **Notificaciones**. Verás una alerta indicando que el hospital acaba de procesar un informe de validación automatizado.
-3. Ve a **"Reportes de Validación"** (o "Validaciones").
-4. Busca el reporte generado recientemente para revisar la decisión tomada por el Agente de IA.
-5. Aquí podrás leer el "Análisis de Cobertura" y el "Análisis de Preexistencias" que hizo el Agente para entender por qué se aprobó o denegó la cobertura de ese caso particular.
+2. Ve a tus **Notificaciones**. Recibirás una alerta cada vez que el Agente de IA finalice una evaluación para un afiliado de tu aseguradora.
+3. Haz clic en la notificación para abrir el reporte y leer el "Análisis de Cobertura" y "Análisis de Preexistencias" que la IA realizó automáticamente.
