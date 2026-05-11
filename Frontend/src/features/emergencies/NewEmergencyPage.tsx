@@ -10,6 +10,8 @@ import {
   listInsurers,
   listPoliciesByPatient,
   listPreexistingConditionsByPatient,
+  createPreexistingCondition,
+  listRecentPatients,
 } from '../../lib/api'
 import type { Patient, Policy, PreexistingCondition, Insurer } from '../../types/api'
 import { EmptyState } from '../../shared/components/EmptyState'
@@ -27,6 +29,7 @@ export function NewEmergencyPage() {
   const navigate = useNavigate()
   const [patientLookup, setPatientLookup] = useState({ documentType: 'cedula', documentNumber: '' })
   const [patient, setPatient] = useState<Patient | null>(null)
+  const [recentPatients, setRecentPatients] = useState<Patient[]>([])
   const [policies, setPolicies] = useState<Policy[]>([])
   const [insurers, setInsurers] = useState<Insurer[]>([])
   const [preexistingConditions, setPreexistingConditions] = useState<PreexistingCondition[]>([])
@@ -42,6 +45,13 @@ export function NewEmergencyPage() {
   const [policyForm, setPolicyForm] = useState({
     insurerId: '',
     selectedPlanId: '',
+  })
+
+  const [showPreexistingModal, setShowPreexistingModal] = useState(false)
+  const [preexistingSubmitLoading, setPreexistingSubmitLoading] = useState(false)
+  const [preexistingForm, setPreexistingForm] = useState({
+    conditionName: '',
+    description: '',
   })
 
   const [patientForm, setPatientForm] = useState({
@@ -74,6 +84,10 @@ export function NewEmergencyPage() {
             setPolicyForm((prev) => ({ ...prev, insurerId: data[0].id }))
           }
         })
+        .catch(console.error)
+
+      listRecentPatients(5, token)
+        .then(setRecentPatients)
         .catch(console.error)
     }
   }, [token, user])
@@ -165,8 +179,8 @@ export function NewEmergencyPage() {
 
       setCreatePatientMode(false)
       await hydratePatientContext(createdPatient, token)
-      setFeedbackMessage('Paciente registrado. Puedes asignarle una poliza opcionalmente.')
-      setShowPolicyModal(true)
+      setFeedbackMessage('Paciente registrado.')
+      setShowPreexistingModal(true)
     } catch (error) {
       if (error instanceof ApiError) {
         setErrorMessage(error.message)
@@ -176,6 +190,40 @@ export function NewEmergencyPage() {
     } finally {
       setSubmitLoading(false)
     }
+  }
+
+  async function handleCreatePreexisting(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!token || !patient) return
+    
+    setPreexistingSubmitLoading(true)
+    try {
+      const createdCond = await createPreexistingCondition(patient.id, {
+        conditionName: preexistingForm.conditionName,
+        description: preexistingForm.description,
+      }, token)
+      
+      setPreexistingConditions(prev => [...prev, createdCond])
+      setShowPreexistingModal(false)
+      setFeedbackMessage('Preexistencia registrada. Puedes asignarle una póliza opcionalmente.')
+      setShowPolicyModal(true)
+      
+      setPreexistingForm({ conditionName: '', description: '' })
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setErrorMessage(error.message)
+      } else {
+        setErrorMessage('No se pudo registrar la preexistencia.')
+      }
+    } finally {
+      setPreexistingSubmitLoading(false)
+    }
+  }
+
+  function handleSkipPreexisting() {
+      setShowPreexistingModal(false)
+      setFeedbackMessage('Paciente registrado. Puedes asignarle una póliza opcionalmente.')
+      setShowPolicyModal(true)
   }
 
   async function handleCreateEmergency(event: FormEvent<HTMLFormElement>) {
@@ -298,6 +346,27 @@ export function NewEmergencyPage() {
             </button>
           </form>
 
+          {recentPatients.length > 0 && !patient && !createPatientMode && (
+            <div className="recent-patients">
+              <h4 style={{ margin: '1rem 0 0.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Pacientes Recientes</h4>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {recentPatients.map(rp => (
+                  <li key={rp.id}>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      style={{ width: '100%', textAlign: 'left', display: 'flex', justifyContent: 'space-between', padding: '0.5rem 1rem' }}
+                      onClick={() => hydratePatientContext(rp, token!)}
+                    >
+                      <span>{rp.firstName} {rp.lastName}</span>
+                      <span style={{ color: 'var(--text-tertiary)', fontSize: '0.875rem' }}>{rp.documentNumber}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {createPatientMode ? (
             <form className="stack-form nested-form" onSubmit={handleCreatePatient}>
               <div className="section-heading compact-heading">
@@ -417,9 +486,14 @@ export function NewEmergencyPage() {
               <p>Polizas y preexistencias cargadas a partir del paciente seleccionado.</p>
             </div>
             {patient && (
-              <button type="button" className="secondary-button" onClick={() => setShowPolicyModal(true)}>
-                Asignar poliza
-              </button>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button type="button" className="secondary-button" onClick={() => setShowPreexistingModal(true)}>
+                  Agregar preexistencia
+                </button>
+                <button type="button" className="secondary-button" onClick={() => setShowPolicyModal(true)}>
+                  Asignar poliza
+                </button>
+              </div>
             )}
           </div>
 
@@ -590,6 +664,44 @@ export function NewEmergencyPage() {
           </button>
         </form>
       </section>
+
+      {showPreexistingModal && patient ? (
+        <div className="analysis-modal-overlay">
+          <div className="analysis-modal-card">
+            <h3>Declaracion de preexistencias</h3>
+            <p className="analysis-modal-copy">
+              ¿El paciente <strong>{patient.firstName} {patient.lastName}</strong> tiene alguna condicion preexistente?
+            </p>
+            <form className="stack-form" onSubmit={handleCreatePreexisting}>
+              <label className="field-group">
+                <span>Enfermedad o condicion</span>
+                <input
+                  value={preexistingForm.conditionName}
+                  onChange={(e) => setPreexistingForm(curr => ({ ...curr, conditionName: e.target.value }))}
+                  required
+                  placeholder="Ej: Hipertension, Diabetes, Asma"
+                />
+              </label>
+              <label className="field-group">
+                <span>Descripcion o notas (opcional)</span>
+                <textarea
+                  value={preexistingForm.description}
+                  onChange={(e) => setPreexistingForm(curr => ({ ...curr, description: e.target.value }))}
+                  rows={3}
+                />
+              </label>
+              <div className="analysis-modal-actions" style={{ marginTop: '1rem' }}>
+                <button type="submit" className="primary-button" disabled={preexistingSubmitLoading}>
+                  {preexistingSubmitLoading ? 'Guardando...' : 'Guardar preexistencia'}
+                </button>
+                <button type="button" className="secondary-button" onClick={handleSkipPreexisting} disabled={preexistingSubmitLoading}>
+                  No tiene / Omitir
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
 
       {showPolicyModal && (
         <div className="analysis-modal-overlay" role="presentation">

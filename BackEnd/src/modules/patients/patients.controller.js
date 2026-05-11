@@ -19,8 +19,15 @@ async function getPatientByDocument(request, response) {
   response.status(200).json(patient);
 }
 
+async function getRecentPatients(request, response) {
+  const limit = parseInt(request.query.limit, 10) || 5;
+  const patients = await patientsService.getRecentPatients(limit);
+  response.status(200).json(patients);
+}
+
 module.exports = {
   createPatient,
   getPatientById,
-  getPatientByDocument
+  getPatientByDocument,
+  getRecentPatients
 };

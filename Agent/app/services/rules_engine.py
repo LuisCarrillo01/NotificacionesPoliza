@@ -168,8 +168,10 @@ def _classify_preexisting_condition(
 def _parse_date(value: str | None) -> date | None:
     if not value:
         return None
+
+    normalized_value = value.split("T", 1)[0]
     try:
-        return date.fromisoformat(value)
+        return date.fromisoformat(normalized_value)
     except ValueError:
         return None
 
@@ -195,7 +197,7 @@ def evaluate_policy_status(policy: PolicyPayload) -> dict[str, Any]:
         dates_parseable = False
 
     policy_state_valid = policy_status in {"vigente", "vencida", "suspendida", "cancelada"}
-    policy_is_active = policy_status == "vigente" and within_date_range and dates_parseable
+    policy_is_active = policy_status == "vigente" and (within_date_range if dates_parseable else True)
     return {
         "policy_status": policy_status,
         "policy_is_active": policy_is_active,
@@ -258,8 +260,7 @@ def build_result_payload_from_facts(
     request: ValidationRequest, facts: dict[str, Any]
 ) -> ValidationResultPayload:
     emergency_type = normalize_emergency_type(request.emergency.tipo_emergencia)
-    data_inconclusive = not facts.get("policy_state_valid", True) or not facts.get("policy_dates_parseable", True)
-    data_inconclusive = data_inconclusive or not facts.get("coverage_conclusive", True)
+    data_inconclusive = not facts.get("policy_state_valid", True) or not facts.get("coverage_conclusive", True)
     critical_related_conditions = facts.get("active_preexisting_related_critical_names", [])
 
     if not facts.get("policy_is_active"):

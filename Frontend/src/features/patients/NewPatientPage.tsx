@@ -5,6 +5,8 @@ import {
   createPatient,
   createPolicy,
   listInsurers,
+  createPreexistingCondition,
+  getPatientByDocument,
 } from '../../lib/api'
 import type { Patient, Insurer } from '../../types/api'
 import { ErrorAlert } from '../../shared/components/ErrorAlert'
@@ -26,6 +28,13 @@ export function NewPatientPage() {
   const [policyForm, setPolicyForm] = useState({
     insurerId: '',
     selectedPlanId: '',
+  })
+
+  const [showPreexistingModal, setShowPreexistingModal] = useState(false)
+  const [preexistingSubmitLoading, setPreexistingSubmitLoading] = useState(false)
+  const [preexistingForm, setPreexistingForm] = useState({
+    conditionName: '',
+    description: '',
   })
 
   const [patientForm, setPatientForm] = useState({
@@ -85,8 +94,8 @@ export function NewPatientPage() {
       )
 
       setPatient(createdPatient)
-      setFeedbackMessage('Paciente registrado exitosamente. Puedes asignarle una poliza opcionalmente.')
-      setShowPolicyModal(true)
+      setFeedbackMessage('Paciente registrado exitosamente.')
+      setShowPreexistingModal(true)
       
       // Limpiar formulario para nuevo registro potencial
       setPatientLookup({ documentType: 'cedula', documentNumber: '' })
@@ -100,14 +109,62 @@ export function NewPatientPage() {
         address: '',
       })
     } catch (error) {
-      if (error instanceof ApiError) {
+      if (error instanceof ApiError && error.status === 409) {
+        // El paciente ya existe, vamos a cargarlo
+        try {
+          const existingPatient = await getPatientByDocument(patientLookup.documentType, patientLookup.documentNumber, token)
+          setPatient(existingPatient)
+          setFeedbackMessage('Este paciente ya estaba registrado. Puedes continuar agregando preexistencias o pólizas.')
+          setShowPreexistingModal(true)
+          
+          setPatientLookup({ documentType: 'cedula', documentNumber: '' })
+          setPatientForm({
+            firstName: '', lastName: '', birthDate: '', gender: '', phoneNumber: '', emailAddress: '', address: '',
+          })
+        } catch (lookupError) {
+          setErrorMessage('El paciente existe pero no pudo ser recuperado.')
+        }
+      } else if (error instanceof ApiError) {
         setErrorMessage(error.message)
       } else {
-        setErrorMessage('No se pudo registrar el paciente. Es posible que el documento ya exista.')
+        setErrorMessage('No se pudo registrar el paciente. Verifica los datos ingresados.')
       }
     } finally {
       setSubmitLoading(false)
     }
+  }
+
+  async function handleCreatePreexisting(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!token || !patient) return
+    
+    setPreexistingSubmitLoading(true)
+    try {
+      await createPreexistingCondition(patient.id, {
+        conditionName: preexistingForm.conditionName,
+        description: preexistingForm.description,
+      }, token)
+      
+      setShowPreexistingModal(false)
+      setFeedbackMessage('Preexistencia registrada. Puedes asignarle una póliza opcionalmente.')
+      setShowPolicyModal(true)
+      
+      setPreexistingForm({ conditionName: '', description: '' })
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setErrorMessage(error.message)
+      } else {
+        setErrorMessage('No se pudo registrar la preexistencia.')
+      }
+    } finally {
+      setPreexistingSubmitLoading(false)
+    }
+  }
+
+  function handleSkipPreexisting() {
+      setShowPreexistingModal(false)
+      setFeedbackMessage('Paciente registrado. Puedes asignarle una póliza opcionalmente.')
+      setShowPolicyModal(true)
   }
 
   async function handleCreatePolicy(event: FormEvent<HTMLFormElement>) {
@@ -290,6 +347,44 @@ export function NewPatientPage() {
           </div>
         </form>
       </div>
+
+      {showPreexistingModal && patient ? (
+        <div className="analysis-modal-overlay">
+          <div className="analysis-modal-card">
+            <h3>Declaracion de preexistencias</h3>
+            <p className="analysis-modal-copy">
+              ¿El paciente <strong>{patient.firstName} {patient.lastName}</strong> tiene alguna condicion preexistente?
+            </p>
+            <form className="stack-form" onSubmit={handleCreatePreexisting}>
+              <label className="field-group">
+                <span>Enfermedad o condicion</span>
+                <input
+                  value={preexistingForm.conditionName}
+                  onChange={(e) => setPreexistingForm(curr => ({ ...curr, conditionName: e.target.value }))}
+                  required
+                  placeholder="Ej: Hipertension, Diabetes, Asma"
+                />
+              </label>
+              <label className="field-group">
+                <span>Descripcion o notas (opcional)</span>
+                <textarea
+                  value={preexistingForm.description}
+                  onChange={(e) => setPreexistingForm(curr => ({ ...curr, description: e.target.value }))}
+                  rows={3}
+                />
+              </label>
+              <div className="analysis-modal-actions" style={{ marginTop: '1rem' }}>
+                <button type="submit" className="primary-button" disabled={preexistingSubmitLoading}>
+                  {preexistingSubmitLoading ? 'Guardando...' : 'Guardar preexistencia'}
+                </button>
+                <button type="button" className="secondary-button" onClick={handleSkipPreexisting} disabled={preexistingSubmitLoading}>
+                  No tiene / Omitir
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
 
       {showPolicyModal && (
         <div className="analysis-modal-overlay" role="presentation">

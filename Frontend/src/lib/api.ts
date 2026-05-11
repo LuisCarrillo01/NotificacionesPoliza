@@ -148,6 +148,14 @@ export function listPreexistingConditionsByPatient(patientId: string, token: str
   return request<PreexistingCondition[]>(`/patients/${patientId}/preexisting-conditions`, { token })
 }
 
+export function createPreexistingCondition(patientId: string, payload: Partial<PreexistingCondition>, token: string) {
+  return request<PreexistingCondition>(`/patients/${patientId}/preexisting-conditions`, {
+    method: 'POST',
+    body: payload,
+    token,
+  })
+}
+
 export function listNotifications(token: string) {
   return request<Notification[]>('/notifications', { token })
 }
@@ -169,6 +177,14 @@ export function markNotificationAsRead(notificationId: string, token: string) {
 
 export function getReportById(reportId: string, token: string) {
   return request<Report>(`/reports/${reportId}`, { token })
+}
+
+export function getPatientById(id: string, token: string) {
+  return request<Patient>(`/patients/${id}`, { token })
+}
+
+export function listRecentPatients(limit: number = 5, token: string) {
+  return request<Patient[]>(`/patients?limit=${limit}`, { token })
 }
 
 export function getReportByValidationId(validationId: string, token: string) {

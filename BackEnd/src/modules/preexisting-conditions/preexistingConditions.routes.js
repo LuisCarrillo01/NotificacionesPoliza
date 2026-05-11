@@ -9,4 +9,9 @@ preexistingConditionsRouter.get(
   asyncHandler(preexistingConditionsController.getPreexistingConditionsByPatientId)
 );
 
+preexistingConditionsRouter.post(
+  '/patients/:patientId/preexisting-conditions',
+  asyncHandler(preexistingConditionsController.createPreexistingCondition)
+);
+
 module.exports = preexistingConditionsRouter;

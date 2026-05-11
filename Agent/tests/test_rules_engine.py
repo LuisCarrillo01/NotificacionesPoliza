@@ -42,6 +42,32 @@ def test_policy_status_uses_estado_vigente():
     assert facts["policy_is_active"] is True
 
 
+def test_policy_status_accepts_iso_timestamp_dates():
+    facts = evaluate_policy_status(
+        PolicyPayload(
+            numero_poliza="POL-1",
+            estado="vigente",
+            fecha_inicio="2026-05-11T00:00:00.000Z",
+            fecha_fin="2027-05-11T00:00:00.000Z",
+        )
+    )
+    assert facts["policy_is_active"] is True
+    assert facts["policy_dates_parseable"] is True
+
+
+def test_policy_status_trusts_vigente_when_dates_are_unparseable():
+    facts = evaluate_policy_status(
+        PolicyPayload(
+            numero_poliza="POL-1",
+            estado="vigente",
+            fecha_inicio="11/05/2026",
+            fecha_fin="11/05/2027",
+        )
+    )
+    assert facts["policy_is_active"] is True
+    assert facts["policy_dates_parseable"] is False
+
+
 def test_normalizes_unknown_emergency_type_to_general():
     assert normalize_emergency_type("rara") == "GENERAL"
 

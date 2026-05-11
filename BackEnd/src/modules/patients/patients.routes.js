@@ -13,6 +13,7 @@ patientsRouter.post(
 );
 
 patientsRouter.get('/document/:documentType/:documentNumber', asyncHandler(patientsController.getPatientByDocument));
+patientsRouter.get('/', asyncHandler(patientsController.getRecentPatients));
 patientsRouter.get('/:patientId', asyncHandler(patientsController.getPatientById));
 
 module.exports = patientsRouter;

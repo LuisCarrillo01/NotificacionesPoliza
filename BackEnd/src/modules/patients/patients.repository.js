@@ -47,8 +47,17 @@ async function findPatientByDocument(documentType, documentNumber) {
   return queryResult.rows[0] || null;
 }
 
+async function findRecentPatients(limit = 5) {
+  const queryResult = await executeQuery(
+    'SELECT * FROM pacientes ORDER BY created_at DESC LIMIT $1',
+    [limit]
+  );
+  return queryResult.rows;
+}
+
 module.exports = {
   createPatient,
   findPatientById,
-  findPatientByDocument
+  findPatientByDocument,
+  findRecentPatients
 };

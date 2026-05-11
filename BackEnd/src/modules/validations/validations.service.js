@@ -126,6 +126,7 @@ async function getValidationDispatchContext(emergencyRecord) {
 }
 
 async function dispatchValidationToAgent(validationRecord, emergencyRecord, context) {
+  const policyRecord = context.policyRecord;
   const callbackPath = `/api/validations/${validationRecord.id}/result`;
   const validationAgentPayload = buildValidationAgentPayload({
     validation: mapValidationRecord(validationRecord),
@@ -152,7 +153,21 @@ async function dispatchValidationToAgent(validationRecord, emergencyRecord, cont
     emergencyId: emergencyRecord.id,
     agentUrl,
     callbackPath,
-    hasCallbackToken: Boolean(environmentConfig.validationResultCallbackToken)
+    hasCallbackToken: Boolean(environmentConfig.validationResultCallbackToken),
+    policyDateDebug: {
+      fechaInicioRaw: policyRecord.fecha_inicio,
+      fechaFinRaw: policyRecord.fecha_fin,
+      fechaInicioType: typeof policyRecord.fecha_inicio,
+      fechaFinType: typeof policyRecord.fecha_fin,
+      fechaInicioSerialized:
+        policyRecord.fecha_inicio instanceof Date
+          ? policyRecord.fecha_inicio.toISOString()
+          : String(policyRecord.fecha_inicio),
+      fechaFinSerialized:
+        policyRecord.fecha_fin instanceof Date
+          ? policyRecord.fecha_fin.toISOString()
+          : String(policyRecord.fecha_fin)
+    }
   });
 
   try {

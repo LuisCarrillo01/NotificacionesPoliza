@@ -25,7 +25,7 @@ async function registerPatient(patientData) {
   );
 
   if (existingPatient) {
-    throw new AppError('A patient with the same document already exists', 409);
+    throw new AppError('El paciente con este documento ya se encuentra registrado en el sistema.', 409);
   }
 
   const createdPatient = await patientRepository.createPatient(patientData);
@@ -52,8 +52,14 @@ async function getPatientByDocument(documentType, documentNumber) {
   return mapPatientRecord(patientRecord);
 }
 
+async function getRecentPatients(limit = 5) {
+  const patientRecords = await patientRepository.findRecentPatients(limit);
+  return patientRecords.map(mapPatientRecord);
+}
+
 module.exports = {
   registerPatient,
   getPatientById,
-  getPatientByDocument
+  getPatientByDocument,
+  getRecentPatients
 };

@@ -1030,12 +1030,12 @@ async function seedDatabase() {
       await insertPolicy(client, policy);
     }
 
-    for (const coverage of coverages) {
-      await insertCoverage(client, coverage);
-    }
-
     for (const condition of preexistingConditions) {
       await insertPreexistingCondition(client, condition);
+    }
+
+    for (const coverage of coverages) {
+      await insertCoverage(client, coverage);
     }
 
     for (const emergency of emergencies) {

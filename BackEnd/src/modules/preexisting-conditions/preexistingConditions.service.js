@@ -19,6 +19,12 @@ async function getPreexistingConditionsByPatientId(patientId) {
   return preexistingConditionRecords.map(mapPreexistingConditionRecord);
 }
 
+async function addPreexistingCondition(patientId, conditionData) {
+  const record = await preexistingConditionsRepository.insertPreexistingCondition(patientId, conditionData);
+  return mapPreexistingConditionRecord(record);
+}
+
 module.exports = {
-  getPreexistingConditionsByPatientId
+  getPreexistingConditionsByPatientId,
+  addPreexistingCondition
 };
